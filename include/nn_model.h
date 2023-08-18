@@ -32,9 +32,19 @@ nn_model_t *nn_model_init_copy(nn_model_t *model, const nn_model_t *src_model);
 nn_model_t *nn_model_add(nn_model_t *model, const nn_layer_t *layer);
 nn_model_t *nn_model_remove(nn_model_t *model, int layer_index);
 
-vec_t *nn_model_eval(const nn_model_t *model, const vec_t *input, vec_t *output);
+vec_t *nn_model_apply(const nn_model_t *model, const vec_t *input, vec_t *output);
 
-nn_model_t *nn_model_train(nn_model_t *model, const mat_t *data, const vec_t *label, nn_model_type type);
+nn_model_t *nn_model_train(nn_model_t *model,
+                           const mat_t *data,
+                           const mat_t *target,
+                           int batch_size,
+                           int nbr_epochs,
+                           FLT_TYP learning_rate,
+                           nn_model_type type);
+
+FLT_TYP nn_model_eval(const nn_model_t *model, const mat_t *inp_data, const mat_t *target);
+
+void nn_model_print(nn_model_t* model);
 
 void nn_model_save(const nn_model_t *model, const char *file_path);
 nn_model_t *nn_model_load(nn_model_t *model, const char *file_path);
