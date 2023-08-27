@@ -4,17 +4,6 @@
 
 #include "nn.h"
 
-vec_t *act_f(vec_t *res, const vec_t *inp)
-{
-    vec_assign(res, inp);
-    return res;
-}
-
-vec_t *act_drv(vec_t *res, const vec_t *inp, const vec_t *a)
-{
-    vec_fill(res, 1);
-    return res;
-}
 
 float rnd(void)
 {
@@ -43,40 +32,46 @@ int main()
 {
 
     srand(time(NULL));
-    int nbr_data = 1000;
+    int nbr_data = 3000;
     int nbr_feat = 2;
     mat_t *data = mat_new(nbr_data, nbr_feat);
     mat_t *target = mat_new(nbr_data, 1);
     gen_data(data, target);
+    mat_t *test_data = mat_new(nbr_data/4, nbr_feat);
+    mat_t *test_target = mat_new(nbr_data/4, 1);
+    gen_data(test_data, test_target);
 
-    nn_activ_t act;
-    act.func = act_f;
-    act.deriv = act_drv;
-    nn_layer_t lay0, lay1;
+    nn_layer_t lay0, lay1, lay2;
     lay0.out_sz = 2;
-    lay0.activ = act;
-    lay1.out_sz = 1;
-    lay1.activ = act;
+    lay0.activ = nn_activ_RELU;
+    lay1.out_sz = 4;
+    lay1.activ = nn_activ_RELU;
+    lay2.out_sz = 1;
+    lay2.activ = nn_activ_ID;
+
 
     nn_model_t model = nn_model_NULL;
     nn_model_construct(&model, 8, nbr_feat);
-    // nn_model_add(&model, &lay0);
-    // nn_model_add(&model, &lay0);
+    nn_model_add(&model, &lay0);
     nn_model_add(&model, &lay1);
+    nn_model_add(&model, &lay2);
     nn_model_init_rnd(&model, rnd);
 
+    // nn_model_print(&model);
+    float avg_err = nn_model_eval(&model, test_data, test_target, nn_err_MSE);
+    printf("Eval avg err before training: %f\n", avg_err);
+
+    nn_model_train(&model, data, target, 32, 3000, 0.001, nn_err_MSE, Regression);
+
     nn_model_print(&model);
 
-    nn_model_train(&model, data, target, 1, 1000, 0.01, Regression);
-
-    nn_model_print(&model);
-
-    gen_data(data, target);
-    float avg_err = nn_model_eval(&model, data, target);
-    printf("Eval avg err: %f\n", avg_err);
+    avg_err = nn_model_eval(&model, test_data, test_target, nn_err_MSE);
+    printf("Eval avg err after training: %f\n", avg_err);
 
     nn_model_destruct(&model);
 
+    mat_del(test_data);
+    mat_del(test_target);
     mat_del(target);
     mat_del(data);
 

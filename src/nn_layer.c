@@ -10,7 +10,7 @@ const nn_layer_t nn_layer_NULL =
 
 nn_layer_t *nn_layer_init(
     nn_layer_t *layer, 
-    size_t output_size, 
+    IND_TYP output_size, 
     nn_activ_t activation,
     FLT_TYP dropout_ratio)
 {
