@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <stdbool.h>
 
 #include "nn.h"
 
@@ -61,7 +62,7 @@ int main()
     float avg_err = nn_model_eval(&model, test_data, test_target, nn_err_MSE);
     printf("Eval avg err before training: %f\n", avg_err);
 
-    nn_model_train(&model, data, target, 32, 3000, 0.001, nn_err_MSE, Regression);
+    nn_model_train(&model, data, target, 32, 3000, true, 0.001, nn_err_MSE, Regression);
 
     nn_model_print(&model);
 

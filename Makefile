@@ -5,12 +5,15 @@ SRCPATH = ./src
 BINPATH = ./bin
 OBJPATH = ./obj
 LIBPATH = ./lib
-EXT_INC_FLAGS= -I/usr/include/mkl -I${HOME}/include
+EXT_INC_FLAGS= -I${HOME}/include/lin_alg
 EXT_LIB_FLAGS= -L/usr/lib/x86_64-linux-gnu -L${HOME}/lib
 
 RLS_LIB = $(PRJNAME)
 DBG_LIB = $(PRJNAME)_dbg
 
+DESTPATH = ${HOME}
+LIBINSTPATH = ${DESTPATH}/lib
+INCINSTPATH = ${DESTPATH}/include/${PRJNAME}
 
 CC = gcc
 LD = gcc
@@ -23,7 +26,9 @@ RLS_CFLAGS = -DNDEBUG $(COM_CFLAGS) $(OPT_CFLAGS)
 RLS_LDFLAGS = $(OPT_CFLAGS) -L$(LIBPATH) $(EXT_LIB_FLAGS)
 DBG_CFLAGS = -DDEBUG -g $(COM_CFLAGS) 
 DBG_LDFLAGS = -L$(LIBPATH) $(EXT_LIB_FLAGS) -g
-LD_LIBS = -llin_alg_flt32_dbg -lmkl_rt -lm #-lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lpthread -lm -ldl
+LD_DBG_LIBS = -llin_alg_flt32_dbg
+LD_RLS_LIBS = -llin_alg_flt32
+LD_LIBS = -Wl,--no-as-needed -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -liomp5 -lpthread -lm -ldl
 
 CFILES = $(wildcard $(SRCPATH)/*.c)
 HFILES = $(wildcard $(INCPATH)/*.h)
@@ -53,7 +58,7 @@ $(LIBPATH)/lib$(DBG_LIB).a: $(DBG_OBJS)
 
 $(BINPATH)/$(DBG_LIB)_test.out: $(SRCPATH)/$(PRJNAME)_test.c $(LIBPATH)/lib$(DBG_LIB).a
 	@mkdir -p $(BINPATH)
-	$(LD) $(DBG_LDFLAGS) -o $@ -l$(DBG_LIB) $(LD_LIBS)
+	$(LD) $(DBG_LDFLAGS) -o $@ -l$(DBG_LIB) $(LD_DBG_LIBS) $(LD_LIBS)
 
 release: $(LIBPATH)/lib$(RLS_LIB).a
 	@echo "====== make release ======"
@@ -69,6 +74,15 @@ run_test: test
 	@echo "****** test finished ******"
 	@echo "====== make run_test ======"
 
+install: release debug
+	install -d $(LIBINSTPATH)
+	install -m 644 $(LIBPATH)/lib$(RLS_LIB).a ${LIBINSTPATH}
+	install -m 644 $(LIBPATH)/lib$(DBG_LIB).a ${LIBINSTPATH}
+	install -d ${INCINSTPATH}
+	install -m 644 ${INCPATH}/* ${INCINSTPATH}
+	@echo "====== make install ======"
+
 clean:
 	rm -rf $(OBJPATH) $(BINPATH) $(LIBPATH)
 	@echo "====== make clean ======"
+

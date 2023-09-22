@@ -14,12 +14,20 @@ typedef struct nn_err_struct
 } nn_err_t;
 
 #define nn_err_NULL \
-    (nn_err_t) { .func = NULL, .deriv = NULL }
+    ((nn_err_t){.func = NULL, .deriv = NULL})
 
 nn_err_t *nn_err_init(nn_err_t *err,
                       const nn_err_func err_func, const nn_deriv_err_func deriv);
 
-
 extern const nn_err_t nn_err_MSE;
+
+enum nn_err
+{
+    ERR_NON = -1,
+    ERR_MSE
+};
+
+nn_err_t nn_err_from_enum(const enum nn_err e);
+enum nn_err nn_err_to_enum(const nn_err_t *err);
 
 #endif /* NN_ERR_H_INCLUDED */

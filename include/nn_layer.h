@@ -3,6 +3,7 @@
 
 #include "lin_alg.h"
 #include "nn_activ.h"
+#include "byte_arr.h"
 
 typedef struct nn_layer_struct
 {
@@ -18,5 +19,12 @@ nn_layer_t *nn_layer_init(
     IND_TYP output_size,
     nn_activ_t activation,
     FLT_TYP dropout_ratio);
+
+
+size_t nn_layer_serial_size(const nn_layer_t* layer);
+// returna a pointer to the byte after the last byte written
+uint8_t *nn_layer_serialize(const nn_layer_t* layer, uint8_t *byte_arr);
+// returns a pointer to the byte after the last byte read
+const uint8_t *nn_layer_deserialize(nn_layer_t *layer, const uint8_t *byte_arr);
 
 #endif /* NN_LAYER_T_H_INCLUDED */
