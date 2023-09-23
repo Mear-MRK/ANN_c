@@ -26,13 +26,15 @@ enum nn_activ
     ACTIV_SIGMOID,
     ACTIV_TANH,
     ACTIV_RELU,
-    ACTIV_UP_NON
+    ACTIV_UNKNOWN
 };
 
 extern const nn_activ_t nn_activ_ID;
 extern const nn_activ_t nn_activ_SIGMOID;
 extern const nn_activ_t nn_activ_TANH;
 extern const nn_activ_t nn_activ_RELU;
+
+char *nn_activ_to_str(const nn_activ_t *activ, char *string);
 
 nn_activ_t nn_activ_from_enum(enum nn_activ a);
 enum nn_activ nn_activ_to_enum(const nn_activ_t *activ);

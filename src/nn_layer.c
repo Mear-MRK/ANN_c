@@ -2,6 +2,7 @@
 
 #include <assert.h>
 #include <string.h>
+#include <stdio.h>
 
 const nn_layer_t nn_layer_NULL =
     {.out_sz = 0, .activ = nn_activ_NULL, .dropout = 0};
@@ -21,6 +22,18 @@ nn_layer_t *nn_layer_init(
     layer->dropout = dropout_ratio;
 
     return layer;
+}
+
+char *nn_layer_to_str(const nn_layer_t *layer, char *string)
+{
+    assert(layer);
+    assert(string);
+    string[0] = 0;
+    char buff[32];
+    buff[0] = 0;
+    sprintf(string, "nn_layer: ouput size: %d, dropout %g, activation: %s",
+            layer->out_sz, layer->dropout, nn_activ_to_str(&layer->activ, buff));
+    return string;
 }
 
 size_t nn_layer_serial_size(const nn_layer_t *layer)

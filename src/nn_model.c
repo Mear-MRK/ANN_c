@@ -369,9 +369,28 @@ FLT_TYP nn_model_eval(const nn_model_t *model, const mat_t *data_x, const mat_t 
     return err_value / trg_nrm;
 }
 
-void nn_model_print(nn_model_t *model)
+char *nn_model_to_str(const nn_model_t *model, char *string)
+{
+    assert(model);
+    assert(string);
+    char buff[128];
+    buff[0] = 0;
+    sprintf(string, "nn_model: input size %d, nbr of layers %d, max width %d, capacity %d; layers:\n",
+            model->input_size, model->nbr_layers, model->max_width, model->capacity);
+    for (int l = 0; l < model->nbr_layers; l++)
+    {
+        sprintf(buff, "%3d ", l);
+        strcat(string, buff);
+        strcat(string, nn_layer_to_str(model->layer + l, buff));
+        strcat(string, "\n");
+    }
+    return string;
+}
+
+void nn_model_print(const nn_model_t *model)
 {
     char str_buff[4096];
+    printf(nn_model_to_str(model, str_buff));
     for (int l = 0; l < model->nbr_layers; l++)
     {
         printf("layer %d:\n", l);

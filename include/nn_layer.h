@@ -20,6 +20,7 @@ nn_layer_t *nn_layer_init(
     nn_activ_t activation,
     FLT_TYP dropout_ratio);
 
+char *nn_layer_to_str(const nn_layer_t* layer, char *string);
 
 size_t nn_layer_serial_size(const nn_layer_t* layer);
 // returna a pointer to the byte after the last byte written

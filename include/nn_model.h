@@ -55,8 +55,8 @@ nn_model_t *nn_model_train(nn_model_t *model,
 FLT_TYP nn_model_eval(const nn_model_t *model, const mat_t *data_x, const mat_t *data_trg,
  const nn_err_t err);
 
-void nn_model_print(nn_model_t *model);
-
+char *nn_model_to_str(const nn_model_t *model, char *string);
+void nn_model_print(const nn_model_t *model);
 
 size_t nn_model_serial_size(const nn_model_t* model);
 // returns a pointer to the byte after the last written byte
