@@ -7,11 +7,19 @@
 #include <assert.h>
 
 const nn_model_t nn_model_NULL =
-    {.capacity = 0, .nbr_layers = 0, .max_width = 0, .layer = NULL, .weight = NULL, .bias = NULL, .d_w = NULL, .d_b = NULL, .s = NULL, .a = NULL};
+    {.capacity = 0, .nbr_layers = 0, .max_width = 0, .layer = NULL, .weight = NULL, .bias = NULL, .intern = nn_model_intern_NULL};
 
 bool nn_model_is_null(const nn_model_t *model)
 {
     return memcmp(model, &nn_model_NULL, sizeof(nn_model_t)) == 0;
+}
+
+static float flt_rnd_amp;
+static float flt_rnd_mean;
+static float (*unif01_flt_rnd)(void);
+static inline float flt_rnd(void)
+{
+    return flt_rnd_amp * (2 * unif01_flt_rnd() - 1) + flt_rnd_mean;
 }
 
 nn_model_t *nn_model_construct(nn_model_t *model, int capacity, IND_TYP input_size)
@@ -39,17 +47,10 @@ nn_model_t *nn_model_construct(nn_model_t *model, int capacity, IND_TYP input_si
     assert(model->weight);
     model->bias = (vec_t *)calloc(capacity, sizeof(vec_t));
     assert(model->bias);
-    model->d_w = (mat_t *)calloc(capacity, sizeof(mat_t));
-    assert(model->d_w);
-    model->d_b = (vec_t *)calloc(capacity, sizeof(vec_t));
-    assert(model->d_b);
-    model->s = (vec_t *)calloc(capacity, sizeof(vec_t));
-    assert(model->s);
-    model->a = (vec_t *)calloc(capacity, sizeof(vec_t));
-    assert(model->a);
     model->input_size = input_size;
     model->nbr_layers = 0;
     model->max_width = 0;
+    nn_model_intern_construct(&model->intern, capacity, input_size);
     return model;
 }
 
@@ -62,30 +63,39 @@ void nn_model_destruct(nn_model_t *model)
         {
             mat_destruct(model->weight + l);
             vec_destruct(model->bias + l);
-            mat_destruct(model->d_w + l);
-            vec_destruct(model->d_b + l);
-            vec_destruct(model->s + l);
-            vec_destruct(model->a + l);
         }
+        nn_model_intern_destruct(&model->intern);
         free(model->layer);
         free(model->weight);
         free(model->bias);
-        free(model->d_w);
-        free(model->d_b);
-        free(model->s);
-        free(model->a);
     }
     *model = nn_model_NULL;
 }
 
-nn_model_t *nn_model_init_rnd(nn_model_t *model, FLT_TYP (*rnd_gen)(void))
+void nn_model_set_rnd_gens(nn_model_t *model, uint32_t (*ui32_rnd)(void), float (*flt_rnd)(void))
 {
     assert(model);
-    assert(rnd_gen);
+    assert(ui32_rnd);
+    assert(flt_rnd);
+
+    model->intern.ui32_rnd = ui32_rnd;
+    model->intern.flt_rnd = flt_rnd;
+
+    unif01_flt_rnd = flt_rnd;
+    flt_rnd_amp = 1;
+    flt_rnd_mean = 0;
+}
+
+nn_model_t *nn_model_init_rnd(nn_model_t *model, FLT_TYP amp, FLT_TYP mean)
+{
+    assert(model);
+    flt_rnd_amp = amp;
+    flt_rnd_mean = mean;
+
     for (int l = 0; l < model->nbr_layers; l++)
     {
-        mat_fill_rnd(model->weight + l, rnd_gen);
-        vec_fill_rnd(model->bias + l, rnd_gen);
+        mat_fill_rnd(model->weight + l, flt_rnd);
+        vec_fill_rnd(model->bias + l, flt_rnd);
     }
     return model;
 }
@@ -103,10 +113,7 @@ nn_model_t *nn_model_add(nn_model_t *model, const nn_layer_t *layer)
     int inp_size = (model->nbr_layers == 0) ? model->input_size : model->layer[model->nbr_layers - 1].out_sz;
     mat_construct(model->weight + model->nbr_layers, layer->out_sz, inp_size);
     vec_construct(model->bias + model->nbr_layers, layer->out_sz);
-    mat_construct(model->d_w + model->nbr_layers, layer->out_sz, inp_size);
-    vec_construct(model->d_b + model->nbr_layers, layer->out_sz);
-    vec_construct(model->s + model->nbr_layers, layer->out_sz);
-    vec_construct(model->a + model->nbr_layers, layer->out_sz);
+    nn_model_intern_add(&model->intern, layer, inp_size);
     model->nbr_layers++;
     if (layer->out_sz > model->max_width)
         model->max_width = layer->out_sz;
@@ -124,24 +131,14 @@ nn_model_t *nn_model_remove(nn_model_t *model, int layer_index)
     model->nbr_layers--;
     mat_destruct(model->weight + layer_index);
     vec_destruct(model->bias + layer_index);
-    mat_destruct(model->d_w + layer_index);
-    vec_destruct(model->d_b + layer_index);
-    vec_destruct(model->s + layer_index);
-    vec_destruct(model->a + layer_index);
+
     memmove(model->layer + layer_index, model->layer + layer_index + 1,
             (model->nbr_layers - layer_index) * sizeof(nn_layer_t));
     memmove(model->weight + layer_index, model->weight + layer_index + 1,
             (model->nbr_layers - layer_index) * sizeof(mat_t));
     memmove(model->bias + layer_index, model->bias + layer_index + 1,
             (model->nbr_layers - layer_index) * sizeof(vec_t));
-    memmove(model->d_w + layer_index, model->d_w + layer_index + 1,
-            (model->nbr_layers - layer_index) * sizeof(mat_t));
-    memmove(model->d_b + layer_index, model->d_b + layer_index + 1,
-            (model->nbr_layers - layer_index) * sizeof(vec_t));
-    memmove(model->s + layer_index, model->s + layer_index + 1,
-            (model->nbr_layers - layer_index) * sizeof(vec_t));
-    memmove(model->a + layer_index, model->a + layer_index + 1,
-            (model->nbr_layers - layer_index) * sizeof(vec_t));
+    nn_model_intern_remove(&model->intern, layer_index);
 
     model->max_width = 0;
     for (int l = 0; l < model->nbr_layers; l++)
@@ -151,7 +148,20 @@ nn_model_t *nn_model_remove(nn_model_t *model, int layer_index)
     return model;
 }
 
-vec_t *nn_model_apply(const nn_model_t *model, const vec_t *input, vec_t *output)
+static void nn_model_dropping_out(nn_model_t *model)
+{
+    nn_layer_t *layer = model->layer;
+    nn_model_intern_t *intern = &model->intern;
+    for (int l = 0; l < model->nbr_layers; l++)
+    {
+        FLT_TYP drp = layer[l].dropout;
+        if (drp != 0)
+            for (IND_TYP u = 0; u < intern->a_mask[l].size; u++)
+                intern->a_mask[l].arr[u] = (intern->flt_rnd() >= drp) ? 1 : 0;
+    }
+}
+
+vec_t *nn_model_apply(const nn_model_t *model, const vec_t *input, vec_t *output, bool training)
 {
     assert(model);
     if (model->nbr_layers == 0)
@@ -163,61 +173,75 @@ vec_t *nn_model_apply(const nn_model_t *model, const vec_t *input, vec_t *output
     assert(input->size == model->input_size);
     assert(output->size == model->layer[model->nbr_layers - 1].out_sz);
 
-    mat_dot_vec(model->s, model->weight, input);
-    vec_addto(model->s, model->bias);
-    model->layer->activ.func(model->a, model->s);
+    vec_t *a_inp = &model->intern.a_inp;
+    vec_t *s = model->intern.s;
+    vec_t *a = model->intern.a;
+    vec_t *a_mask = model->intern.a_mask;
+
+    mat_t *w = model->weight;
+    vec_t *b = model->bias;
+
+    nn_layer_t *layer = model->layer;
+
+    if (layer->dropout && training)
+        vec_mul(a_inp, a_mask, input);
+    else
+        vec_assign(a_inp, input);
+    mat_dot_vec(s, w, a_inp);
+    vec_addto(s, b);
+    layer->activ.func(a, s);
     for (int l = 1; l < model->nbr_layers; l++)
     {
-        mat_dot_vec(model->s + l, model->weight + l, model->a + l - 1);
-        vec_addto(model->s + l, model->bias + l);
-        model->layer[l].activ.func(model->a + l, model->s + l);
+        if (layer[l].dropout && training)
+            vec_mulby(a + l - 1, a_mask + l);
+        mat_dot_vec(s + l, w + l, a + l - 1);
+        vec_addto(s + l, b + l);
+        layer[l].activ.func(a + l, s + l);
     }
-    vec_assign(output, model->a + model->nbr_layers - 1);
+    vec_assign(output, a + model->nbr_layers - 1);
     return output;
 }
 
 void nn_model_backprop(nn_model_t *model, const vec_t *err_drv,
-                       const vec_t *data_x,
+                       //    const vec_t *data_x,
                        vec_t *buff_1, vec_t *buff_2)
 {
     assert(model);
     assert(err_drv);
-    assert(data_x);
+    // assert(data_x);
     assert(model->nbr_layers > 0);
     assert(buff_1);
     assert(buff_2);
+
+    nn_layer_t *layer = model->layer;
+    mat_t *w = model->weight;
+    vec_t *a = model->intern.a;
+    vec_t *s = model->intern.s;
+    vec_t *a_m = model->intern.a_mask;
 
     buff_1->size = err_drv->size;
     vec_assign(buff_1, err_drv);
 
     for (int l = model->nbr_layers - 1; l >= 0; l--)
     {
-        buff_2->size = model->a[l].size;
-        model->layer[l].activ.deriv(buff_2, model->s + l, model->a + l);
+        buff_2->size = a[l].size;
+        layer[l].activ.deriv(buff_2, s + l, a + l);
+        if (l + 1 != model->nbr_layers && layer[l + 1].dropout)
+            vec_mulby(buff_2, a_m + l + 1);
         vec_mulby(buff_2, buff_1);
         const vec_t *tmp;
         if (l != 0)
         {
-            buff_1->size = model->weight[l].d2;
-            vec_dot_mat(buff_1, buff_2, model->weight + l);
-            tmp = model->a + l - 1;
+            buff_1->size = w[l].d2;
+            vec_dot_mat(buff_1, buff_2, w + l);
+            tmp = a + l - 1;
         }
         else
         {
-            tmp = data_x;
+            tmp = &model->intern.a_inp; // data_x;
         }
-        mat_update_outer(model->d_w + l, 1, buff_2, tmp);
-        vec_update(model->d_b + l, 1, buff_2);
-    }
-}
-
-static inline void nn_model_reset_d_w_d_b(nn_model_t *model)
-{
-    assert(model);
-    for (int l = 0; l < model->nbr_layers; l++)
-    {
-        mat_fill_zero(model->d_w + l);
-        vec_fill_zero(model->d_b + l);
+        mat_update_outer(model->intern.d_w + l, 1 / (1 - layer[l].dropout), buff_2, tmp);
+        vec_update(model->intern.d_b + l, 1, buff_2);
     }
 }
 
@@ -227,8 +251,8 @@ static inline void nn_model_update_w_b(nn_model_t *model, FLT_TYP learning_rate)
     FLT_TYP alpha = -learning_rate;
     for (int l = 0; l < model->nbr_layers; l++)
     {
-        mat_update(model->weight + l, alpha, model->d_w + l);
-        vec_update(model->bias + l, alpha, model->d_b + l);
+        mat_update(model->weight + l, alpha, model->intern.d_w + l);
+        vec_update(model->bias + l, alpha, model->intern.d_b + l);
     }
 }
 
@@ -238,16 +262,15 @@ static inline void init_ind(IND_TYP *ind, IND_TYP size)
         ind[i] = i;
 }
 
-static inline void shuffle_ind(IND_TYP *ind, IND_TYP size, IND_TYP rnd(void))
+static inline void shuffle_ind(IND_TYP *ind, IND_TYP size, unsigned rnd(void))
 {
-    IND_TYP tmp, j;
     for (IND_TYP i = 0; i < size - 1; i++)
     {
-        j = rnd() % (size - i) + i;
+        IND_TYP j = rnd() % (size - i) + i;
         assert(j >= 0 && j < size);
         if (j != i)
         {
-            tmp = ind[i];
+            IND_TYP tmp = ind[i];
             ind[i] = ind[j];
             ind[j] = tmp;
         }
@@ -255,11 +278,11 @@ static inline void shuffle_ind(IND_TYP *ind, IND_TYP size, IND_TYP rnd(void))
 }
 
 // 30-bit random
-static inline IND_TYP rnd(void)
-{
-    IND_TYP r = rand() * RAND_MAX + rand();
-    return (r >= 0) ? r : -r;
-}
+// static inline IND_TYP rnd(void)
+// {
+//     IND_TYP r = rand() * RAND_MAX + rand();
+//     return (r >= 0) ? r : -r;
+// }
 
 nn_model_t *nn_model_train(nn_model_t *model,
                            const mat_t *data_x,
@@ -268,8 +291,7 @@ nn_model_t *nn_model_train(nn_model_t *model,
                            int nbr_epochs,
                            bool shuffle,
                            FLT_TYP learning_rate,
-                           const nn_err_t err,
-                           nn_model_type type)
+                           const nn_err_t err)
 {
     assert(model);
     assert(data_x);
@@ -296,37 +318,39 @@ nn_model_t *nn_model_train(nn_model_t *model,
     IND_TYP *ind = (IND_TYP *)calloc(nbr_data, sizeof(IND_TYP));
     assert(ind);
     init_ind(ind, nbr_data);
-    srand(time(NULL));
 
     // puts("Training...");
     for (IND_TYP epoch = 0; epoch < nbr_epochs; epoch++)
     {
         if (shuffle)
-            shuffle_ind(ind, nbr_data, rnd);
+            shuffle_ind(ind, nbr_data, model->intern.ui32_rnd);
         IND_TYP i = 0;
         for (IND_TYP batch = 0; batch < nbr_batch; batch++)
         {
-            nn_model_reset_d_w_d_b(model);
+
+            nn_model_dropping_out(model);
+            nn_model_reset_gradients(&model->intern);
             for (IND_TYP b_i = 0; b_i < batch_size; b_i++, i++)
             {
                 vec_init_prealloc(&feat, data_x->arr + ind[i] * data_x->d2, data_x->d2);
-                nn_model_apply(model, &feat, output);
+                nn_model_apply(model, &feat, output, true);
                 vec_init_prealloc(&lbl, data_trg->arr + ind[i] * data_trg->d2, data_trg->d2);
                 err.deriv(err_drv, &lbl, output);
-                nn_model_backprop(model, err_drv, &feat, buff_1, buff_2);
+                nn_model_backprop(model, err_drv, buff_1, buff_2);
             }
             nn_model_update_w_b(model, learning_rate);
         }
         if (nbr_rem_data > 0)
         {
-            nn_model_reset_d_w_d_b(model);
+            nn_model_dropping_out(model);
+            nn_model_reset_gradients(&model->intern);
             for (; i < nbr_data; i++)
             {
                 vec_init_prealloc(&feat, data_x->arr + ind[i] * data_x->d2, data_x->d2);
-                nn_model_apply(model, &feat, output);
+                nn_model_apply(model, &feat, output, true);
                 vec_init_prealloc(&lbl, data_trg->arr + ind[i] * data_trg->d2, data_trg->d2);
                 err.deriv(err_drv, &lbl, output);
-                nn_model_backprop(model, err_drv, &feat, buff_1, buff_2);
+                nn_model_backprop(model, err_drv, buff_1, buff_2);
             }
             nn_model_update_w_b(model, learning_rate);
         }
@@ -359,7 +383,7 @@ FLT_TYP nn_model_eval(const nn_model_t *model, const mat_t *data_x, const mat_t 
     for (int i = 0; i < data_x->d1; i++)
     {
         vec_init_prealloc(&inp, data_x->arr + i * data_x->d2, data_x->d2);
-        nn_model_apply(model, &inp, out);
+        nn_model_apply(model, &inp, out, false);
         vec_init_prealloc(&trg, data_trg->arr + i * data_trg->d2, data_trg->d2);
         trg_nrm += vec_norm_2(&trg);
         err_value += err.func(&trg, out, buf);
@@ -469,10 +493,10 @@ const uint8_t *nn_model_deserialize(nn_model_t *model, const uint8_t *byte_arr)
         byte_arr = nn_layer_deserialize(model->layer + l, byte_arr);
         byte_arr = mat_deserialize(model->weight + l, byte_arr);
         byte_arr = vec_deserialize(model->bias + l, byte_arr);
-        mat_construct(model->d_w + l, model->weight[l].d1, model->weight[l].d2);
-        vec_construct(model->d_b + l, model->bias[l].size);
-        vec_construct(model->s + l, model->bias[l].size);
-        vec_construct(model->a + l, model->bias[l].size);
+        mat_construct(model->intern.d_w + l, model->weight[l].d1, model->weight[l].d2);
+        vec_construct(model->intern.d_b + l, model->bias[l].size);
+        vec_construct(model->intern.s + l, model->bias[l].size);
+        vec_construct(model->intern.a + l, model->bias[l].size);
     }
     return byte_arr;
 }
