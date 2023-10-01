@@ -4,7 +4,6 @@
 #include <stdbool.h>
 
 #include "nn_layer.h"
-#include "nn_err.h"
 #include "nn_model_intern.h"
 
 typedef struct nn_model_struct
@@ -20,6 +19,9 @@ typedef struct nn_model_struct
 } nn_model_t;
 
 extern const nn_model_t nn_model_NULL;
+
+#include "nn_optim.h"
+#include "nn_err.h"
 
 bool nn_model_is_null(const nn_model_t *model);
 
@@ -43,7 +45,7 @@ nn_model_t *nn_model_train(nn_model_t *model,
                            int batch_size,
                            int nbr_epochs,
                            bool shuffle,
-                           FLT_TYP learning_rate,
+                           nn_optim_t *optimizer,
                            const nn_err_t err);
 
 FLT_TYP nn_model_eval(const nn_model_t *model, const mat_t *data_x, const mat_t *data_trg,
@@ -60,5 +62,8 @@ const uint8_t *nn_model_deserialize(nn_model_t *model, const uint8_t *byte_arr);
 
 void nn_model_save(const nn_model_t *model, const char *file_path);
 nn_model_t *nn_model_load(nn_model_t *model, const char *file_path);
+
+// Merges identically structured models
+// int nn_model_merge(nn_model_t *result, const nn_model_t *model_arr[], FLT_TYP weight_arr[]);
 
 #endif /* NN_MODEL_T_H_INCLUDED */

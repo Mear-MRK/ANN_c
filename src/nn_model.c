@@ -245,16 +245,6 @@ void nn_model_backprop(nn_model_t *model, const vec_t *err_drv,
     }
 }
 
-static inline void nn_model_update_w_b(nn_model_t *model, FLT_TYP learning_rate)
-{
-    assert(learning_rate > 0);
-    FLT_TYP alpha = -learning_rate;
-    for (int l = 0; l < model->nbr_layers; l++)
-    {
-        mat_update(model->weight + l, alpha, model->intern.d_w + l);
-        vec_update(model->bias + l, alpha, model->intern.d_b + l);
-    }
-}
 
 static inline void init_ind(IND_TYP *ind, IND_TYP size)
 {
@@ -277,20 +267,13 @@ static inline void shuffle_ind(IND_TYP *ind, IND_TYP size, unsigned rnd(void))
     }
 }
 
-// 30-bit random
-// static inline IND_TYP rnd(void)
-// {
-//     IND_TYP r = rand() * RAND_MAX + rand();
-//     return (r >= 0) ? r : -r;
-// }
-
 nn_model_t *nn_model_train(nn_model_t *model,
                            const mat_t *data_x,
                            const mat_t *data_trg,
                            int batch_size,
                            int nbr_epochs,
                            bool shuffle,
-                           FLT_TYP learning_rate,
+                           nn_optim_t *optimizer,
                            const nn_err_t err)
 {
     assert(model);
@@ -338,7 +321,7 @@ nn_model_t *nn_model_train(nn_model_t *model,
                 err.deriv(err_drv, &lbl, output);
                 nn_model_backprop(model, err_drv, buff_1, buff_2);
             }
-            nn_model_update_w_b(model, learning_rate);
+            nn_optim_update_model(optimizer, model);
         }
         if (nbr_rem_data > 0)
         {
@@ -352,7 +335,7 @@ nn_model_t *nn_model_train(nn_model_t *model,
                 err.deriv(err_drv, &lbl, output);
                 nn_model_backprop(model, err_drv, buff_1, buff_2);
             }
-            nn_model_update_w_b(model, learning_rate);
+            nn_optim_update_model(optimizer, model);
         }
         // printf("\repoch  %d/%d finished.", epoch + 1, nbr_epochs);
     }
@@ -488,15 +471,14 @@ const uint8_t *nn_model_deserialize(nn_model_t *model, const uint8_t *byte_arr)
     nn_model_construct(model, cap, inp_sz);
     byte_arr = rd_byt(&model->nbr_layers, sizeof(model->nbr_layers), byte_arr);
     byte_arr = rd_byt(&model->max_width, sizeof(model->max_width), byte_arr);
+    nn_model_intern_construct(&model->intern, cap, inp_sz);
     for (IND_TYP l = 0; l < model->nbr_layers; l++)
     {
         byte_arr = nn_layer_deserialize(model->layer + l, byte_arr);
         byte_arr = mat_deserialize(model->weight + l, byte_arr);
         byte_arr = vec_deserialize(model->bias + l, byte_arr);
-        mat_construct(model->intern.d_w + l, model->weight[l].d1, model->weight[l].d2);
-        vec_construct(model->intern.d_b + l, model->bias[l].size);
-        vec_construct(model->intern.s + l, model->bias[l].size);
-        vec_construct(model->intern.a + l, model->bias[l].size);
+        IND_TYP ly_inp_sz = (l != 0) ? model->layer[l - 1].out_sz : inp_sz;
+        nn_model_intern_add(&model->intern, model->layer + l, ly_inp_sz);
     }
     return byte_arr;
 }

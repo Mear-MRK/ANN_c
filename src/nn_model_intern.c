@@ -2,6 +2,7 @@
 
 #include <string.h>
 #include <assert.h>
+#include <stdlib.h>
 
 nn_model_intern_t *nn_model_intern_construct(nn_model_intern_t *intern, int capacity, IND_TYP inp_size)
 {

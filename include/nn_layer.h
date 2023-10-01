@@ -3,7 +3,6 @@
 
 #include "lin_alg.h"
 #include "nn_activ.h"
-#include "byte_arr.h"
 
 typedef struct nn_layer_struct
 {

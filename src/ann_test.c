@@ -53,13 +53,13 @@ int main()
 
     nn_layer_t lay0, lay1, lay2;
     lay0.out_sz = 4;
-    lay0.dropout = 0.01;
+    lay0.dropout = 0.1;
     lay0.activ = nn_activ_RELU;
     lay1.out_sz = 8;
-    lay1.dropout = 0.04;
+    lay1.dropout = 0.1;
     lay1.activ = nn_activ_RELU;
     lay2.out_sz = nbr_out;
-    lay2.dropout = 0.02;
+    lay2.dropout = 0.1;
     lay2.activ = nn_activ_ID;
 
     nn_model_t model = nn_model_NULL;
@@ -70,16 +70,25 @@ int main()
     nn_model_add(&model, &lay2);
     nn_model_init_rnd(&model, 1, 0);
 
+    nn_optim_t optimizer;
+    nn_optim_construct(&optimizer, &nn_optim_cls_SGD, &model);
+    // nn_optim_cls_SGD_params_t sgd_p;
+    // sgd_p.learning_rate = 0.0001f;
+    // nn_optim_set_params(&optimizer, &sgd_p);
+    nn_optim_construct(&optimizer, &nn_optim_cls_ADAM, &model);
+
     puts("init model:");
     nn_model_print(&model);
     float avg_err = nn_model_eval(&model, test_data, test_target, nn_err_MSE);
     printf("Eval avg err before training: %f\n", avg_err);
     puts("Training...");
-    nn_model_train(&model, data, target, 16, 10000, true, 0.0001f, nn_err_MSE);
+    nn_model_train(&model, data, target, 16, 10000, true, &optimizer, nn_err_MSE);
     puts("trained model:");
     nn_model_print(&model);
     avg_err = nn_model_eval(&model, test_data, test_target, nn_err_MSE);
     printf("Eval avg err after training: %f\n", avg_err);
+
+    nn_optim_destruct(&optimizer);
     nn_model_destruct(&model);
 
     mat_del(test_data);
