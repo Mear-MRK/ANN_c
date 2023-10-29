@@ -7,7 +7,7 @@
 
 #include "nn_model.h"
 
-typedef struct
+typedef struct nn_optim_cls_ADAM_intern_struct
 {
     int nbr_layers;
     mat_t *m_w;
@@ -17,12 +17,14 @@ typedef struct
     FLT_TYP *tmp0, *tmp1;
     size_t t;
     FLT_TYP beta1t, beta2t;
-
 } nn_optim_cls_ADAM_intern_t;
 
 static nn_optim_cls_ADAM_intern_t *intern_construct(nn_optim_cls_ADAM_intern_t *intern, nn_optim_t *optimizer, const nn_model_t *model)
 {
     assert(intern);
+    assert(model);
+    assert(optimizer);
+
     intern->nbr_layers = model->nbr_layers;
     intern->m_w = (mat_t *)calloc(intern->nbr_layers, sizeof(mat_t));
     assert(intern->m_w);
@@ -37,7 +39,7 @@ static nn_optim_cls_ADAM_intern_t *intern_construct(nn_optim_cls_ADAM_intern_t *
 
     for (int l = 0; l < intern->nbr_layers; l++)
     {
-        IND_TYP inp_sz = (l != 0) ? model->layer[l - 1].out_sz : model->input_size;
+        IND_TYP inp_sz = (l > 0) ? model->layer[l - 1].out_sz : model->input_size;
         IND_TYP out_sz = model->layer[l].out_sz;
         if (out_sz * inp_sz > max_sz)
             max_sz = out_sz * inp_sz;
@@ -50,9 +52,9 @@ static nn_optim_cls_ADAM_intern_t *intern_construct(nn_optim_cls_ADAM_intern_t *
         vec_construct(intern->v_b + l, out_sz);
         vec_fill_zero(intern->v_b + l);
     }
-    intern->tmp0 = (FLT_TYP *)calloc(max_sz, sizeof(FLT_TYP));
+    intern->tmp0 = (FLT_TYP *)aligned_alloc(64, max_sz * sizeof(FLT_TYP));
     assert(intern->tmp0);
-    intern->tmp1 = (FLT_TYP *)calloc(max_sz, sizeof(FLT_TYP));
+    intern->tmp1 = (FLT_TYP *)aligned_alloc(64, max_sz * sizeof(FLT_TYP));
     assert(intern->tmp1);
     nn_optim_cls_ADAM_params_t *params = (nn_optim_cls_ADAM_params_t *)optimizer->params;
     intern->t = params->t0;
@@ -85,8 +87,9 @@ static nn_optim_t *nn_optim_cls_ADAM_construct(nn_optim_t *optimizer, const nn_m
     assert(optimizer);
     assert(model);
     optimizer->params = calloc(1, sizeof(nn_optim_cls_ADAM_params_t));
-    optimizer->intern = calloc(1, sizeof(nn_optim_cls_ADAM_intern_t));
     assert(optimizer->params);
+    optimizer->intern = calloc(1, sizeof(nn_optim_cls_ADAM_intern_t));
+    assert(optimizer->intern);
     nn_optim_cls_ADAM_params_t *params = (nn_optim_cls_ADAM_params_t *)optimizer->params;
     nn_optim_cls_ADAM_intern_t *intern = (nn_optim_cls_ADAM_intern_t *)optimizer->intern;
     *params = nn_optim_cls_ADAM_params_DEFAULT;

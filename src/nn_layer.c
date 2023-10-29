@@ -31,7 +31,7 @@ char *nn_layer_to_str(const nn_layer_t *layer, char *string)
     string[0] = 0;
     char buff[32];
     buff[0] = 0;
-    sprintf(string, "nn_layer: ouput size: %d, dropout %g, activation: %s",
+    sprintf(string, "nn_layer: ouput size: %ld, dropout %g, activation: %s",
             layer->out_sz, layer->dropout, nn_activ_to_str(&layer->activ, buff));
     return string;
 }
@@ -39,13 +39,16 @@ char *nn_layer_to_str(const nn_layer_t *layer, char *string)
 size_t nn_layer_serial_size(const nn_layer_t *layer)
 {
     assert(layer);
-    return sizeof(layer->out_sz) + sizeof(enum nn_activ) + sizeof(layer->dropout);
+    return sizeof(size_t) + sizeof(layer->out_sz) + sizeof(enum nn_activ) + sizeof(layer->dropout);
 }
 
 uint8_t *nn_layer_serialize(const nn_layer_t *layer, uint8_t *byte_arr)
 {
     assert(layer);
     assert(byte_arr);
+    size_t sz = nn_layer_serial_size(layer);
+    memcpy(byte_arr, &sz, sizeof(size_t));
+    byte_arr += sizeof(size_t);
     size_t sz_o = sizeof(layer->out_sz);
     size_t sz_a = sizeof(enum nn_activ);
     size_t sz_d = sizeof(layer->dropout);
@@ -63,6 +66,7 @@ const uint8_t *nn_layer_deserialize(nn_layer_t *layer, const uint8_t *byte_arr)
 {
     assert(layer);
     assert(byte_arr);
+    byte_arr += sizeof(size_t);
     size_t sz_o = sizeof(layer->out_sz);
     size_t sz_a = sizeof(enum nn_activ);
     size_t sz_d = sizeof(layer->dropout);

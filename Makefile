@@ -19,7 +19,7 @@ CC = gcc
 LD = gcc
 AR = ar
 
-COM_CFLAGS = -std=c11 -Wall -Wextra -I$(INCPATH) $(EXT_INC_FLAGS) -DINDEX_T=INT32 -DFEILD_T=FLT32
+COM_CFLAGS = -std=c11 -Wall -Wextra -I$(INCPATH) $(EXT_INC_FLAGS) -DINT64=64
 OPT_CFLAGS = -flto -O3
 
 RLS_CFLAGS = -DNDEBUG $(COM_CFLAGS) $(OPT_CFLAGS)
@@ -28,7 +28,8 @@ DBG_CFLAGS = -DDEBUG -g $(COM_CFLAGS)
 DBG_LDFLAGS = -L$(LIBPATH) $(EXT_LIB_FLAGS) -g
 LD_DBG_LIBS = -llin_alg_flt32_dbg
 LD_RLS_LIBS = -llin_alg_flt32
-LD_LIBS = -Wl,--no-as-needed -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -liomp5 -lpthread -lm -ldl
+LD_LIBS = -lmkl_rt -lm
+#-Wl,--no-as-needed -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -liomp5 -lpthread -lm -ldl
 
 CFILES = $(wildcard $(SRCPATH)/*.c)
 HFILES = $(wildcard $(INCPATH)/*.h)

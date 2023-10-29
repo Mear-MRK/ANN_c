@@ -86,7 +86,7 @@ void nn_model_set_rnd_gens(nn_model_t *model, uint32_t (*ui32_rnd)(void), float 
     flt_rnd_mean = 0;
 }
 
-nn_model_t *nn_model_init_rnd(nn_model_t *model, FLT_TYP amp, FLT_TYP mean)
+nn_model_t *nn_model_init_uniform_rnd(nn_model_t *model, FLT_TYP amp, FLT_TYP mean)
 {
     assert(model);
     flt_rnd_amp = amp;
@@ -245,7 +245,6 @@ void nn_model_backprop(nn_model_t *model, const vec_t *err_drv,
     }
 }
 
-
 static inline void init_ind(IND_TYP *ind, IND_TYP size)
 {
     for (IND_TYP i = 0; i < size; i++)
@@ -274,7 +273,7 @@ nn_model_t *nn_model_train(nn_model_t *model,
                            int nbr_epochs,
                            bool shuffle,
                            nn_optim_t *optimizer,
-                           const nn_err_t err)
+                           const nn_loss_t err)
 {
     assert(model);
     assert(data_x);
@@ -350,7 +349,7 @@ nn_model_t *nn_model_train(nn_model_t *model,
 }
 
 FLT_TYP nn_model_eval(const nn_model_t *model, const mat_t *data_x, const mat_t *data_trg,
-                      const nn_err_t err)
+                      const nn_loss_t err, bool categorization)
 {
     assert(model);
     assert(data_x);
@@ -365,11 +364,20 @@ FLT_TYP nn_model_eval(const nn_model_t *model, const mat_t *data_x, const mat_t 
     vec_t *buf = vec_new(data_trg->d2);
     for (int i = 0; i < data_x->d1; i++)
     {
-        vec_init_prealloc(&inp, data_x->arr + i * data_x->d2, data_x->d2);
+        vec_init_prealloc(&inp, mat_at(data_x, i, 0), data_x->d2);
         nn_model_apply(model, &inp, out, false);
-        vec_init_prealloc(&trg, data_trg->arr + i * data_trg->d2, data_trg->d2);
-        trg_nrm += vec_norm_2(&trg);
-        err_value += err.func(&trg, out, buf);
+        vec_init_prealloc(&trg, mat_at(data_trg, i, 0), data_trg->d2);
+        if (!categorization)
+        {
+            trg_nrm += vec_norm_2(&trg);
+            err_value += err.func(&trg, out, buf);
+        }
+        else
+        {
+            trg_nrm += 1;
+            IND_TYP im = vec_argmax(out);
+            err_value += 1 - *vec_at(&trg, im);
+        }
     }
     vec_del(buf);
     vec_del(out);
@@ -382,7 +390,7 @@ char *nn_model_to_str(const nn_model_t *model, char *string)
     assert(string);
     char buff[128];
     buff[0] = 0;
-    sprintf(string, "nn_model: input size %d, nbr of layers %d, max width %d, capacity %d; layers:\n",
+    sprintf(string, "nn_model: input size %ld, nbr of layers %d, max width %ld, capacity %d; layers:\n",
             model->input_size, model->nbr_layers, model->max_width, model->capacity);
     for (int l = 0; l < model->nbr_layers; l++)
     {
@@ -422,7 +430,8 @@ size_t nn_model_serial_size(const nn_model_t *model)
 {
     assert(model);
     size_t size = 0;
-    size += sizeof(model->capacity) + sizeof(model->input_size) +
+    size += sizeof(size_t) +
+            sizeof(model->capacity) + sizeof(model->input_size) +
             sizeof(model->nbr_layers) + sizeof(model->max_width);
     for (IND_TYP l = 0; l < model->nbr_layers; l++)
     {
@@ -437,6 +446,8 @@ uint8_t *nn_model_serialize(const nn_model_t *model, uint8_t *byte_arr)
 {
     assert(model);
     assert(byte_arr);
+    size_t sz = nn_model_serial_size(model);
+    byte_arr = wrt2byt(&sz, sizeof(size_t), byte_arr);
     byte_arr = wrt2byt(&model->capacity, sizeof(model->capacity), byte_arr);
     byte_arr = wrt2byt(&model->input_size, sizeof(model->input_size), byte_arr);
     byte_arr = wrt2byt(&model->nbr_layers, sizeof(model->nbr_layers), byte_arr);
@@ -452,9 +463,10 @@ uint8_t *nn_model_serialize(const nn_model_t *model, uint8_t *byte_arr)
 
 static inline const uint8_t *rd_byt(void *obj, size_t sz, const uint8_t *bytes)
 {
-    assert(obj);
     assert(bytes);
     assert(sz);
+    if (!obj)
+        return bytes + sz;
     memcpy(obj, bytes, sz);
     return bytes + sz;
 }
@@ -466,6 +478,7 @@ const uint8_t *nn_model_deserialize(nn_model_t *model, const uint8_t *byte_arr)
     assert(nn_model_is_null(model));
     int cap = 0;
     IND_TYP inp_sz = 0;
+    byte_arr = rd_byt(NULL, sizeof(size_t), byte_arr);
     byte_arr = rd_byt(&cap, sizeof(model->capacity), byte_arr);
     byte_arr = rd_byt(&inp_sz, sizeof(model->input_size), byte_arr);
     nn_model_construct(model, cap, inp_sz);
@@ -495,9 +508,8 @@ void nn_model_save(const nn_model_t *model, const char *file_path)
     uint8_t *byte_arr = malloc(size);
     assert(byte_arr);
     const uint8_t *ptr = nn_model_serialize(model, byte_arr);
-    size_t wr_sz = fwrite(&size, sizeof(size_t), 1, file);
-    wr_sz += fwrite(byte_arr, 1, size, file);
-    if (wr_sz != size + 1)
+    size_t wr_sz = fwrite(byte_arr, 1, size, file);
+    if (wr_sz != size)
     {
         perror("nn_model_save: can't write (completely) to the file!");
         fclose(file);
@@ -518,11 +530,11 @@ nn_model_t *nn_model_load(nn_model_t *model, const char *file_path)
         exit(-2);
     }
     size_t size = 0;
-    size_t sz = fread(&size, sizeof(size_t), 1, file);
+    fread(&size, sizeof(size_t), 1, file);
     uint8_t *byte_arr = malloc(size);
     assert(byte_arr);
-    sz += fread(byte_arr, 1, size, file);
-    if (sz != size + 1)
+    size_t sz = fread(byte_arr, 1, size, file);
+    if (sz != size)
     {
         perror("nn_model_load: can't read (completely) from the file!");
         fclose(file);
