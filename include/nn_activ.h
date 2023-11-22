@@ -2,6 +2,7 @@
 #define NN_ACTIV_H_INCLUDED 1
 
 #include "lin_alg.h"
+#include "nn_conf.h"
 
 typedef vec_t *(*nn_activation_func)(vec_t *result, const vec_t *s);
 typedef vec_t *(*nn_deriv_activ_func)(vec_t *result, const vec_t *s, const vec_t *act_s);

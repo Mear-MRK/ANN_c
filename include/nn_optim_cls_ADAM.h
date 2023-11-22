@@ -3,6 +3,7 @@
 #include "nn_optim.h"
 
 #include "lin_alg.h"
+#include "nn_conf.h"
 
 extern const nn_optim_class nn_optim_cls_ADAM;
 

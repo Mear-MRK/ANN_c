@@ -2,6 +2,8 @@
 #define NN_OPTIM_H_INCLUDED 1
 
 // #include "nn_model.h"
+#include "nn_conf.h"
+
 struct nn_model_struct;
 typedef struct nn_model_struct nn_model_t;
 
@@ -24,7 +26,8 @@ struct nn_optim_class_struct
     nn_optim_destruct_func destruct;
 };
 
-#define nn_optim_class_NULL ((const nn_optim_class){.update_model = NULL, .construct = NULL, .set_params = NULL, .destruct = NULL})
+#define nn_optim_class_NULL \
+((const nn_optim_class){.update_model = NULL, .construct = NULL, .set_params = NULL, .destruct = NULL})
 
 struct nn_optim_struct
 {

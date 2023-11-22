@@ -5,6 +5,7 @@
 
 #include "nn_layer.h"
 #include "nn_model_intern.h"
+#include "nn_conf.h"
 
 typedef struct nn_model_struct
 {
@@ -34,7 +35,9 @@ void nn_model_set_rnd_gens(nn_model_t *model, uint32_t (*ui32_rnd)(void), float 
 nn_model_t *nn_model_init_uniform_rnd(nn_model_t *model, FLT_TYP amp, FLT_TYP mean);
 // nn_model_t *nn_model_init_copy(nn_model_t *model, const nn_model_t *src_model);
 
-nn_model_t *nn_model_add(nn_model_t *model, const nn_layer_t *layer);
+// append layer
+nn_model_t *nn_model_append(nn_model_t *model, const nn_layer_t *layer);
+// remove layer
 nn_model_t *nn_model_remove(nn_model_t *model, int layer_index);
 
 vec_t *nn_model_apply(const nn_model_t *model, const vec_t *input, vec_t *output, bool training);
@@ -42,6 +45,7 @@ vec_t *nn_model_apply(const nn_model_t *model, const vec_t *input, vec_t *output
 nn_model_t *nn_model_train(nn_model_t *model,
                            const mat_t *data_x,
                            const mat_t *data_trg,
+                           const vec_t *data_weight,
                            int batch_size,
                            int nbr_epochs,
                            bool shuffle,
@@ -53,6 +57,8 @@ FLT_TYP nn_model_eval(const nn_model_t *model, const mat_t *data_x, const mat_t 
 
 char *nn_model_to_str(const nn_model_t *model, char *string);
 void nn_model_print(const nn_model_t *model);
+
+size_t nn_model_nbr_param(const nn_model_t *model);
 
 size_t nn_model_serial_size(const nn_model_t *model);
 // returns a pointer to the byte after the last written byte

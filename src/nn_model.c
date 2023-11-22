@@ -57,7 +57,7 @@ nn_model_t *nn_model_construct(nn_model_t *model, int capacity, IND_TYP input_si
 void nn_model_destruct(nn_model_t *model)
 {
     assert(model);
-    if (memcmp(model, &nn_model_NULL, sizeof(nn_model_t)))
+    if (!nn_model_is_null(model))
     {
         for (int l = 0; l < model->nbr_layers; l++)
         {
@@ -100,7 +100,7 @@ nn_model_t *nn_model_init_uniform_rnd(nn_model_t *model, FLT_TYP amp, FLT_TYP me
     return model;
 }
 
-nn_model_t *nn_model_add(nn_model_t *model, const nn_layer_t *layer)
+nn_model_t *nn_model_append(nn_model_t *model, const nn_layer_t *layer)
 {
     assert(model);
     assert(layer);
@@ -156,8 +156,8 @@ static void nn_model_dropping_out(nn_model_t *model)
     {
         FLT_TYP drp = layer[l].dropout;
         if (drp != 0)
-            for (IND_TYP u = 0; u < intern->a_mask[l].size; u++)
-                intern->a_mask[l].arr[u] = (intern->flt_rnd() >= drp) ? 1 : 0;
+            for (IND_TYP u = 0; u < intern->a_mask[l].d; u++)
+                *vec_at(intern->a_mask + l, u) = (FLT_TYP)(intern->flt_rnd() >= drp);
     }
 }
 
@@ -166,12 +166,10 @@ vec_t *nn_model_apply(const nn_model_t *model, const vec_t *input, vec_t *output
     assert(model);
     if (model->nbr_layers == 0)
         return output;
-    assert(input);
-    assert(input->arr);
-    assert(output);
-    assert(output->arr);
-    assert(input->size == model->input_size);
-    assert(output->size == model->layer[model->nbr_layers - 1].out_sz);
+    assert(vec_is_valid(input));
+    assert(vec_is_valid(output));
+    assert(input->d == model->input_size);
+    assert(output->d == model->layer[model->nbr_layers - 1].out_sz);
 
     vec_t *a_inp = &model->intern.a_inp;
     vec_t *s = model->intern.s;
@@ -202,16 +200,16 @@ vec_t *nn_model_apply(const nn_model_t *model, const vec_t *input, vec_t *output
     return output;
 }
 
-void nn_model_backprop(nn_model_t *model, const vec_t *err_drv,
-                       //    const vec_t *data_x,
-                       vec_t *buff_1, vec_t *buff_2)
+static inline void nn_model_backprop(nn_model_t *model, const vec_t *loss_drv,
+                                     //    const vec_t *data_x,
+                                     vec_t *buff_1, vec_t *buff_2)
 {
     assert(model);
-    assert(err_drv);
+    assert(vec_is_valid(loss_drv));
     // assert(data_x);
     assert(model->nbr_layers > 0);
-    assert(buff_1);
-    assert(buff_2);
+    assert(vec_is_valid(buff_1));
+    assert(vec_is_valid(buff_2));
 
     nn_layer_t *layer = model->layer;
     mat_t *w = model->weight;
@@ -219,12 +217,12 @@ void nn_model_backprop(nn_model_t *model, const vec_t *err_drv,
     vec_t *s = model->intern.s;
     vec_t *a_m = model->intern.a_mask;
 
-    buff_1->size = err_drv->size;
-    vec_assign(buff_1, err_drv);
+    buff_1->d = loss_drv->d;
+    vec_assign(buff_1, loss_drv);
 
     for (int l = model->nbr_layers - 1; l >= 0; l--)
     {
-        buff_2->size = a[l].size;
+        buff_2->d = a[l].d;
         layer[l].activ.deriv(buff_2, s + l, a + l);
         if (l + 1 != model->nbr_layers && layer[l + 1].dropout)
             vec_mulby(buff_2, a_m + l + 1);
@@ -232,7 +230,7 @@ void nn_model_backprop(nn_model_t *model, const vec_t *err_drv,
         const vec_t *tmp;
         if (l != 0)
         {
-            buff_1->size = w[l].d2;
+            buff_1->d = w[l].d2;
             vec_dot_mat(buff_1, buff_2, w + l);
             tmp = a + l - 1;
         }
@@ -269,16 +267,19 @@ static inline void shuffle_ind(IND_TYP *ind, IND_TYP size, unsigned rnd(void))
 nn_model_t *nn_model_train(nn_model_t *model,
                            const mat_t *data_x,
                            const mat_t *data_trg,
+                           const vec_t *data_weight,
                            int batch_size,
                            int nbr_epochs,
                            bool shuffle,
                            nn_optim_t *optimizer,
-                           const nn_loss_t err)
+                           const nn_loss_t loss)
 {
     assert(model);
-    assert(data_x);
-    assert(data_trg);
+    assert(mat_is_valid(data_x));
+    assert(mat_is_valid(data_trg));
     assert(data_x->d1 == data_trg->d1);
+    if (data_weight)
+        assert(data_weight->d == data_x->d1);
     assert(batch_size > 0 && nbr_epochs > 0);
     if (model->nbr_layers == 0 || data_x->d1 == 0 || data_trg->d1 == 0)
     {
@@ -291,8 +292,8 @@ nn_model_t *nn_model_train(nn_model_t *model,
     vec_t *buff_1 = vec_new(model->max_width);
     vec_t *buff_2 = vec_new(model->max_width);
     vec_t *output = vec_new(model->layer[model->nbr_layers - 1].out_sz);
-    vec_t *err_drv = vec_new(model->layer[model->nbr_layers - 1].out_sz);
-    vec_t feat, lbl;
+    vec_t *loss_drv = vec_new(model->layer[model->nbr_layers - 1].out_sz);
+    vec_t feat = vec_NULL, lbl = vec_NULL;
     IND_TYP nbr_data = data_x->d1;
     IND_TYP nbr_batch = nbr_data / batch_size;
     IND_TYP nbr_rem_data = nbr_data - nbr_batch * batch_size;
@@ -314,11 +315,15 @@ nn_model_t *nn_model_train(nn_model_t *model,
             nn_model_reset_gradients(&model->intern);
             for (IND_TYP b_i = 0; b_i < batch_size; b_i++, i++)
             {
-                vec_init_prealloc(&feat, data_x->arr + ind[i] * data_x->d2, data_x->d2);
+                // vec_init_prealloc(&feat, mat_at(data_x, ind[i], 0), data_x->d2);
+                mat_row_at(data_x, &feat, ind[i]);
                 nn_model_apply(model, &feat, output, true);
-                vec_init_prealloc(&lbl, data_trg->arr + ind[i] * data_trg->d2, data_trg->d2);
-                err.deriv(err_drv, &lbl, output);
-                nn_model_backprop(model, err_drv, buff_1, buff_2);
+                // vec_init_prealloc(&lbl, mat_at(data_trg, ind[i], 0), data_trg->d2);
+                mat_row_at(data_trg, &lbl, ind[i]);
+                loss.deriv(loss_drv, &lbl, output);
+                if (data_weight)
+                    vec_scale(loss_drv, *vec_at(data_weight, ind[i]));
+                nn_model_backprop(model, loss_drv, buff_1, buff_2);
             }
             nn_optim_update_model(optimizer, model);
         }
@@ -328,11 +333,15 @@ nn_model_t *nn_model_train(nn_model_t *model,
             nn_model_reset_gradients(&model->intern);
             for (; i < nbr_data; i++)
             {
-                vec_init_prealloc(&feat, data_x->arr + ind[i] * data_x->d2, data_x->d2);
+                // vec_init_prealloc(&feat, mat_at(data_x, ind[i], 0), data_x->d2);
+                mat_row_at(data_x, &feat, ind[i]);
                 nn_model_apply(model, &feat, output, true);
-                vec_init_prealloc(&lbl, data_trg->arr + ind[i] * data_trg->d2, data_trg->d2);
-                err.deriv(err_drv, &lbl, output);
-                nn_model_backprop(model, err_drv, buff_1, buff_2);
+                // vec_init_prealloc(&lbl, mat_at(data_trg, ind[i], 0), data_trg->d2);
+                mat_row_at(data_trg, &lbl, ind[i]);
+                loss.deriv(loss_drv, &lbl, output);
+                if (data_weight)
+                    vec_scale(loss_drv, *vec_at(data_weight, ind[i]));
+                nn_model_backprop(model, loss_drv, buff_1, buff_2);
             }
             nn_optim_update_model(optimizer, model);
         }
@@ -341,7 +350,7 @@ nn_model_t *nn_model_train(nn_model_t *model,
     // puts("\n...done.");
 
     free(ind);
-    vec_del(err_drv);
+    vec_del(loss_drv);
     vec_del(output);
     vec_del(buff_2);
     vec_del(buff_1);
@@ -349,39 +358,41 @@ nn_model_t *nn_model_train(nn_model_t *model,
 }
 
 FLT_TYP nn_model_eval(const nn_model_t *model, const mat_t *data_x, const mat_t *data_trg,
-                      const nn_loss_t err, bool categorization)
+                      const nn_loss_t loss, bool categorization)
 {
     assert(model);
-    assert(data_x);
-    assert(data_trg);
+    assert(mat_is_valid(data_x));
+    assert(mat_is_valid(data_trg));
     assert(data_x->d1 == data_trg->d1);
     if (model->nbr_layers == 0 || data_x->d1 == 0 || data_trg->d1 == 0)
         return -1;
-    FLT_TYP err_value = 0;
+    FLT_TYP loss_value = 0;
     FLT_TYP trg_nrm = 0;
-    vec_t inp, trg;
+    vec_t inp = vec_NULL, trg = vec_NULL;
     vec_t *out = vec_new(data_trg->d2);
     vec_t *buf = vec_new(data_trg->d2);
     for (int i = 0; i < data_x->d1; i++)
     {
-        vec_init_prealloc(&inp, mat_at(data_x, i, 0), data_x->d2);
+        // vec_init_prealloc(&inp, mat_at(data_x, i, 0), data_x->d2);
+        mat_row_at(data_x, &inp, i);
         nn_model_apply(model, &inp, out, false);
-        vec_init_prealloc(&trg, mat_at(data_trg, i, 0), data_trg->d2);
+        // vec_init_prealloc(&trg, mat_at(data_trg, i, 0), data_trg->d2);
+        mat_row_at(data_trg, &trg, i);
         if (!categorization)
         {
             trg_nrm += vec_norm_2(&trg);
-            err_value += err.func(&trg, out, buf);
+            loss_value += loss.func(&trg, out, buf);
         }
         else
         {
             trg_nrm += 1;
             IND_TYP im = vec_argmax(out);
-            err_value += 1 - *vec_at(&trg, im);
+            loss_value += 1 - *vec_at(&trg, im);
         }
     }
     vec_del(buf);
     vec_del(out);
-    return err_value / trg_nrm;
+    return loss_value / trg_nrm;
 }
 
 char *nn_model_to_str(const nn_model_t *model, char *string)
@@ -415,6 +426,19 @@ void nn_model_print(const nn_model_t *model)
         printf("b[%d]:\n%s\n", l, str_buff);
         // puts("");
     }
+}
+
+size_t nn_model_nbr_param(const nn_model_t *model)
+{
+    assert(model);
+    if (model->nbr_layers <= 0)
+        return 0;
+    size_t nbr_param = (model->input_size + 1) * model->layer[0].out_sz;
+    for (int l = 1; l < model->nbr_layers; l++)
+    {
+        nbr_param += model->layer[l].out_sz * (1 + model->layer[l - 1].out_sz);
+    }
+    return nbr_param;
 }
 
 static inline uint8_t *wrt2byt(const void *obj, size_t sz, uint8_t *bytes)

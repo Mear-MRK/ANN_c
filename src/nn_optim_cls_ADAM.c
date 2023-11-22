@@ -14,7 +14,7 @@ typedef struct nn_optim_cls_ADAM_intern_struct
     vec_t *m_b;
     mat_t *v_w;
     vec_t *v_b;
-    FLT_TYP *tmp0, *tmp1;
+    payload_t pyl_0, pyl_1;
     size_t t;
     FLT_TYP beta1t, beta2t;
 } nn_optim_cls_ADAM_intern_t;
@@ -52,10 +52,10 @@ static nn_optim_cls_ADAM_intern_t *intern_construct(nn_optim_cls_ADAM_intern_t *
         vec_construct(intern->v_b + l, out_sz);
         vec_fill_zero(intern->v_b + l);
     }
-    intern->tmp0 = (FLT_TYP *)aligned_alloc(64, max_sz * sizeof(FLT_TYP));
-    assert(intern->tmp0);
-    intern->tmp1 = (FLT_TYP *)aligned_alloc(64, max_sz * sizeof(FLT_TYP));
-    assert(intern->tmp1);
+    payload_construct(&intern->pyl_0, max_sz);
+    assert(payload_is_valid(&intern->pyl_0));
+    payload_construct(&intern->pyl_1, max_sz);
+    assert(payload_is_valid(&intern->pyl_1));
     nn_optim_cls_ADAM_params_t *params = (nn_optim_cls_ADAM_params_t *)optimizer->params;
     intern->t = params->t0;
     intern->beta1t = (FLT_TYP)pow(params->beta1, intern->t);
@@ -77,8 +77,8 @@ static void intern_destruct(nn_optim_cls_ADAM_intern_t *intern)
     free(intern->m_b);
     free(intern->v_w);
     free(intern->v_b);
-    free(intern->tmp0);
-    free(intern->tmp1);
+    payload_release(&intern->pyl_0);
+    payload_release(&intern->pyl_1);
     memset(intern, 0, sizeof(nn_optim_cls_ADAM_intern_t));
 }
 
@@ -152,10 +152,14 @@ static nn_model_t *nn_optim_cls_ADAM_update_model(nn_optim_t *optimizer, nn_mode
     FLT_TYP d1 = (1 - params->beta1) / (1 - intern->beta1t);
     FLT_TYP c2 = params->beta2 * omb2 / (1 - intern->beta2t);
     FLT_TYP d2 = (1 - params->beta2) / (1 - intern->beta2t);
-    mat_t tmp_w;
-    mat_t tmp_dw;
-    vec_t tmp_b;
-    vec_t tmp_db;
+    mat_t tmp_w = mat_NULL;
+    mat_t tmp_dw = mat_NULL;
+    vec_t tmp_b = vec_NULL;
+    vec_t tmp_db = vec_NULL;
+    mat_construct_prealloc(&tmp_w, &intern->pyl_0, 0, 1, 1);
+    vec_construct_prealloc(&tmp_b, &intern->pyl_1, 0, 1, 1);
+    mat_construct_prealloc(&tmp_dw, &intern->pyl_1, 0, 1, 1);
+    vec_construct_prealloc(&tmp_db, &intern->pyl_0, 0, 1, 1);
     for (int l = 0; l < model->nbr_layers; l++)
     {
         mat_scale(intern->m_w + l, c1);
@@ -163,28 +167,31 @@ static nn_model_t *nn_optim_cls_ADAM_update_model(nn_optim_t *optimizer, nn_mode
         vec_scale(intern->m_b + l, c1);
         vec_update(intern->m_b + l, d1, model->intern.d_b + l);
 
-        mat_init_prealloc(&tmp_w, intern->tmp0, model->intern.d_w[l].d1, model->intern.d_w[l].d2);
+        mat_reform(&tmp_w, 0, model->intern.d_w[l].d1, model->intern.d_w[l].d2);
         mat_square(&tmp_w, model->intern.d_w + l);
         mat_scale(intern->v_w + l, c2);
         mat_update(intern->v_w + l, d2, &tmp_w);
-        vec_init_prealloc(&tmp_b, intern->tmp1, model->intern.d_b[l].size);
+        vec_reform(&tmp_b, 0, model->intern.d_b[l].d, 1);
         vec_square(&tmp_b, model->intern.d_b + l);
         vec_scale(intern->v_b + l, c2);
         vec_update(intern->v_b + l, d2, &tmp_b);
 
         mat_sqrt(&tmp_w, intern->v_w + l);
         mat_f_addto(&tmp_w, params->eps);
-        mat_init_prealloc(&tmp_dw, intern->tmp1, model->intern.d_w[l].d1, model->intern.d_w[l].d2);
+        mat_reform(&tmp_dw, 0, model->intern.d_w[l].d1, model->intern.d_w[l].d2);
         mat_div(&tmp_dw, intern->m_w + l, &tmp_w);
         mat_update(model->weight + l, -params->alpha, &tmp_dw);
 
         vec_sqrt(&tmp_b, intern->v_b + l);
         vec_f_addto(&tmp_b, params->eps);
-        vec_init_prealloc(&tmp_db, intern->tmp0, model->intern.d_b[l].size);
+        vec_reform(&tmp_db, 0, model->intern.d_b[l].d, 1);
         vec_div(&tmp_db, intern->m_b + l, &tmp_b);
         vec_update(model->bias + l, -params->alpha, &tmp_db);
     }
-
+    vec_destruct(&tmp_b);
+    vec_destruct(&tmp_db);
+    mat_destruct(&tmp_w);
+    mat_destruct(&tmp_dw);
     return model;
 }
 

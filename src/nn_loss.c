@@ -35,7 +35,7 @@ nn_loss_t nn_loss_from_enum(const enum nn_loss e)
 
 static inline FLT_TYP mse_f(const vec_t *trg, const vec_t *out, vec_t *buff)
 {
-    assert(buff);
+    assert(vec_is_valid(buff));
     return vec_norm_2(vec_sub(buff, out, trg));
 }
 static inline vec_t *mse_drv(vec_t *res, const vec_t *trg, const vec_t *out)

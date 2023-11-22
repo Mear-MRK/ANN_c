@@ -2,6 +2,7 @@
 
 #include "lin_alg.h"
 #include "nn_layer.h"
+#include "nn_conf.h"
 
 typedef struct nn_model_intern_struct
 {

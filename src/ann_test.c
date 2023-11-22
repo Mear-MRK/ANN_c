@@ -95,9 +95,9 @@ int main()
     nn_model_t reg_model = nn_model_NULL;
     nn_model_construct(&reg_model, 8, nbr_feat);
     nn_model_set_rnd_gens(&reg_model, u_rnd, flt_rnd);
-    nn_model_add(&reg_model, &lay0);
-    nn_model_add(&reg_model, &lay1);
-    nn_model_add(&reg_model, &lay2);
+    nn_model_append(&reg_model, &lay0);
+    nn_model_append(&reg_model, &lay1);
+    nn_model_append(&reg_model, &lay2);
     nn_model_init_uniform_rnd(&reg_model, 1, 0);
 
     nn_optim_t reg_opt;
@@ -109,10 +109,11 @@ int main()
 
     // puts("init model:");
     // nn_model_print(&reg_model);
+    printf("Model nbr of parameters: %lu\n", nn_model_nbr_param(&reg_model));
     float avg_err = nn_model_eval(&reg_model, reg_test_x, reg_test_trg, nn_loss_MSE, false);
     printf("Eval avg err before training: %f\n", avg_err);
     puts("Training...");
-    nn_model_train(&reg_model, reg_x, reg_trg, 16, 1000, true, &reg_opt, nn_loss_MSE);
+    nn_model_train(&reg_model, reg_x, reg_trg, NULL, 16, 1000, true, &reg_opt, nn_loss_MSE);
     // puts("trained model:");
     // nn_model_print(&reg_model);
     avg_err = nn_model_eval(&reg_model, reg_test_x, reg_test_trg, nn_loss_MSE, false);
@@ -151,8 +152,8 @@ int main()
     nn_model_t cat_model = nn_model_NULL;
     nn_model_construct(&cat_model, 8, nbr_feat);
     nn_model_set_rnd_gens(&cat_model, u_rnd, flt_rnd);
-    nn_model_add(&cat_model, &cat_lay0);
-    nn_model_add(&cat_model, &cat_lay_end);
+    nn_model_append(&cat_model, &cat_lay0);
+    nn_model_append(&cat_model, &cat_lay_end);
     nn_model_init_uniform_rnd(&cat_model, 0.5, 0.01);
 
     nn_optim_t cat_opt;
@@ -160,10 +161,11 @@ int main()
 
     // puts("init model:");
     // nn_model_print(&cat_model);
+    printf("Model nbr of parameters: %lu\n", nn_model_nbr_param(&cat_model));
     avg_err = nn_model_eval(&cat_model, cat_test_x, cat_test_lbl, nn_loss_CrossEnt, true);
     printf("Eval avg err before training: %f\n", avg_err);
     puts("Training...");
-    nn_model_train(&cat_model, cat_x, cat_lbl, 16, 1000, true, &cat_opt, nn_loss_CrossEnt);
+    nn_model_train(&cat_model, cat_x, cat_lbl, NULL, 16, 1000, true, &cat_opt, nn_loss_CrossEnt);
     // puts("trained model:");
     // nn_model_print(&cat_model);
     avg_err = nn_model_eval(&cat_model, cat_test_x, cat_test_lbl, nn_loss_CrossEnt, true);
