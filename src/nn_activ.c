@@ -56,7 +56,7 @@ char *nn_activ_to_str(const nn_activ_t *activ, char *string)
     return string;
 }
 
-nn_activ_t nn_activ_from_enum(enum nn_activ a)
+nn_activ_t nn_activ_from_enum(enum nn_activ_enum a)
 {
     switch (a)
     {
@@ -76,7 +76,7 @@ nn_activ_t nn_activ_from_enum(enum nn_activ a)
     return nn_activ_NULL;
 }
 
-enum nn_activ nn_activ_to_enum(const nn_activ_t *a)
+enum nn_activ_enum nn_activ_to_enum(const nn_activ_t *a)
 {
     if (memcmp(a, &nn_activ_NULL, sizeof(nn_activ_t)) == 0)
         return ACTIV_NON;

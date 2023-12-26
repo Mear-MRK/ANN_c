@@ -4,24 +4,22 @@
 #include <assert.h>
 #include <stdlib.h>
 
-nn_model_intern_t *nn_model_intern_construct(nn_model_intern_t *intern, int capacity, IND_TYP inp_size)
+nn_model_intern_t *nn_model_intern_construct(nn_model_intern_t *intern, int layer_capacity, IND_TYP inp_size)
 {
     assert(intern);
-    assert(capacity > 0);
+    assert(layer_capacity > 0);
 
-    intern->d_w = (mat_t *)calloc(capacity, sizeof(mat_t));
+    intern->d_w = (mat_t *)calloc(layer_capacity, sizeof(mat_t));
     assert(intern->d_w);
-    intern->d_b = (vec_t *)calloc(capacity, sizeof(vec_t));
+    intern->d_b = (vec_t *)calloc(layer_capacity, sizeof(vec_t));
     assert(intern->d_b);
-    intern->a_mask = (vec_t *)calloc(capacity, sizeof(vec_t));
+    intern->a_mask = (vec_t *)calloc(layer_capacity, sizeof(vec_t));
     assert(intern->a_mask);
-    intern->s = (vec_t *)calloc(capacity, sizeof(vec_t));
+    intern->s = (vec_t *)calloc(layer_capacity, sizeof(vec_t));
     assert(intern->s);
-    intern->a = (vec_t *)calloc(capacity, sizeof(vec_t));
+    intern->a = (vec_t *)calloc(layer_capacity, sizeof(vec_t));
     assert(intern->a);
     intern->nbr_layers = 0;
-    intern->ui32_rnd = NULL;
-    intern->flt_rnd = NULL;
     intern->a_inp = vec_NULL;
     vec_construct(&intern->a_inp, inp_size);
     return intern;

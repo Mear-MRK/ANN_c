@@ -13,7 +13,7 @@ nn_loss_t *nn_loss_init(nn_loss_t *err, const nn_loss_func err_func, const nn_de
     return err;
 }
 
-enum nn_loss nn_loss_to_enum(const nn_loss_t *err)
+enum nn_loss_enum nn_loss_to_enum(const nn_loss_t *err)
 {
     assert(err);
     if (memcmp(err, &nn_loss_MSE, sizeof(nn_loss_t)) == 0)
@@ -21,7 +21,7 @@ enum nn_loss nn_loss_to_enum(const nn_loss_t *err)
     return LOSS_NON;
 }
 
-nn_loss_t nn_loss_from_enum(const enum nn_loss e)
+nn_loss_t nn_loss_from_enum(const enum nn_loss_enum e)
 {
     switch (e)
     {

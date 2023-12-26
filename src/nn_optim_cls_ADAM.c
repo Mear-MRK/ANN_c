@@ -7,7 +7,7 @@
 
 #include "nn_model.h"
 
-typedef struct nn_optim_cls_ADAM_intern_struct
+typedef struct nn_optim_cls_ADAM_intern
 {
     int nbr_layers;
     mat_t *m_w;

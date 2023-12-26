@@ -6,51 +6,63 @@
 #include <time.h>
 #include <assert.h>
 
+#include "rnd.h"
+#include "log.h"
+
 const nn_model_t nn_model_NULL =
-    {.capacity = 0, .nbr_layers = 0, .max_width = 0, .layer = NULL, .weight = NULL, .bias = NULL, .intern = nn_model_intern_NULL};
+    {.input_size = 0,
+     .ouput_size = 0,
+     .layer_capacity = 0,
+     .nbr_layers = 0,
+     .max_width = 0,
+     .layer = NULL,
+     .weight = NULL,
+     .bias = NULL,
+     .intern = nn_model_intern_NULL};
 
 bool nn_model_is_null(const nn_model_t *model)
 {
     return memcmp(model, &nn_model_NULL, sizeof(nn_model_t)) == 0;
 }
 
-static float flt_rnd_amp;
-static float flt_rnd_mean;
-static float (*unif01_flt_rnd)(void);
-static inline float flt_rnd(void)
-{
-    return flt_rnd_amp * (2 * unif01_flt_rnd() - 1) + flt_rnd_mean;
-}
-
-nn_model_t *nn_model_construct(nn_model_t *model, int capacity, IND_TYP input_size)
+nn_model_t *nn_model_construct(nn_model_t *model, int layer_capacity, IND_TYP input_size)
 {
     assert(model);
+    assert(layer_capacity > 0);
+    assert(input_size > 0);
+
+    if (!model)
+    {
+        log_msg(LOG_ERR, "nn_model_construct: model is pointing to NULL!");
+        return NULL;
+    }
     if (!nn_model_is_null(model))
     {
-        fprintf(stderr, "nn_model_construct: model is not NULL!");
+        log_msg(LOG_ERR, "nn_model_construct: model is not nn_model_NULL!");
         return model;
     }
-    if (capacity <= 0)
+    if (layer_capacity <= 0)
     {
-        fprintf(stderr, "nn_model_construct: capacity must be > 0.");
+        log_msg(LOG_ERR, "nn_model_construct: layer_capacity must be > 0.");
         return NULL;
     }
     if (input_size <= 0)
     {
-        fprintf(stderr, "nn_model_construct: input_size must be > 0.");
-        return model;
+        log_msg(LOG_ERR, "nn_model_construct: input_size must be > 0.");
+        return NULL;
     }
-    model->capacity = capacity;
-    model->layer = (nn_layer_t *)calloc(capacity, sizeof(nn_layer_t));
+    model->layer_capacity = layer_capacity;
+    model->ouput_size = 0;
+    model->layer = (nn_layer_t *)calloc(layer_capacity, sizeof(nn_layer_t));
     assert(model->layer);
-    model->weight = (mat_t *)calloc(capacity, sizeof(mat_t));
+    model->weight = (mat_t *)calloc(layer_capacity, sizeof(mat_t));
     assert(model->weight);
-    model->bias = (vec_t *)calloc(capacity, sizeof(vec_t));
+    model->bias = (vec_t *)calloc(layer_capacity, sizeof(vec_t));
     assert(model->bias);
     model->input_size = input_size;
     model->nbr_layers = 0;
     model->max_width = 0;
-    nn_model_intern_construct(&model->intern, capacity, input_size);
+    nn_model_intern_construct(&model->intern, layer_capacity, input_size);
     return model;
 }
 
@@ -72,30 +84,18 @@ void nn_model_destruct(nn_model_t *model)
     *model = nn_model_NULL;
 }
 
-void nn_model_set_rnd_gens(nn_model_t *model, uint32_t (*ui32_rnd)(void), float (*flt_rnd)(void))
-{
-    assert(model);
-    assert(ui32_rnd);
-    assert(flt_rnd);
-
-    model->intern.ui32_rnd = ui32_rnd;
-    model->intern.flt_rnd = flt_rnd;
-
-    unif01_flt_rnd = flt_rnd;
-    flt_rnd_amp = 1;
-    flt_rnd_mean = 0;
-}
-
 nn_model_t *nn_model_init_uniform_rnd(nn_model_t *model, FLT_TYP amp, FLT_TYP mean)
 {
     assert(model);
-    flt_rnd_amp = amp;
-    flt_rnd_mean = mean;
+
+    flt_rnd_param_t param;
+    param.amp = amp;
+    param.mean = mean;
 
     for (int l = 0; l < model->nbr_layers; l++)
     {
-        mat_fill_rnd(model->weight + l, flt_rnd);
-        vec_fill_rnd(model->bias + l, flt_rnd);
+        mat_fill_gen(model->weight + l, uniform_flt_rnd, &param);
+        vec_fill_gen(model->bias + l, uniform_flt_rnd, &param);
     }
     return model;
 }
@@ -104,16 +104,23 @@ nn_model_t *nn_model_append(nn_model_t *model, const nn_layer_t *layer)
 {
     assert(model);
     assert(layer);
-    if (memcmp(layer, &nn_layer_NULL, sizeof(nn_layer_t) == 0))
+    if (nn_layer_is_null(layer))
+    {
+        log_msg(LOG_WRN, "nn_model_append: the layer is nn_layer_NULL! nothing appended.");
         return model;
-    if (model->nbr_layers == model->capacity)
+    }
+    if (model->nbr_layers == model->layer_capacity)
+    {
+        log_msg(LOG_WRN, "nn_model_append: layer_capacity of the model has been reached; nothing appended.");
         return model; // or resize
+    }
     // makes copy of layer
     model->layer[model->nbr_layers] = *layer;
-    int inp_size = (model->nbr_layers == 0) ? model->input_size : model->layer[model->nbr_layers - 1].out_sz;
+    int inp_size = (model->nbr_layers == 0) ? model->input_size : model->ouput_size;
     mat_construct(model->weight + model->nbr_layers, layer->out_sz, inp_size);
     vec_construct(model->bias + model->nbr_layers, layer->out_sz);
     nn_model_intern_add(&model->intern, layer, inp_size);
+    model->ouput_size = layer->out_sz;
     model->nbr_layers++;
     if (layer->out_sz > model->max_width)
         model->max_width = layer->out_sz;
@@ -144,6 +151,11 @@ nn_model_t *nn_model_remove(nn_model_t *model, int layer_index)
     for (int l = 0; l < model->nbr_layers; l++)
         if (model->layer[l].out_sz > model->max_width)
             model->max_width = model->layer[l].out_sz;
+    if(model->nbr_layers > 0)
+        model->ouput_size = model->ouput_size;
+    else {
+        model->ouput_size = 0;
+    }
 
     return model;
 }
@@ -152,12 +164,13 @@ static void nn_model_dropping_out(nn_model_t *model)
 {
     nn_layer_t *layer = model->layer;
     nn_model_intern_t *intern = &model->intern;
+
     for (int l = 0; l < model->nbr_layers; l++)
     {
         FLT_TYP drp = layer[l].dropout;
         if (drp != 0)
             for (IND_TYP u = 0; u < intern->a_mask[l].d; u++)
-                *vec_at(intern->a_mask + l, u) = (FLT_TYP)(intern->flt_rnd() >= drp);
+                *vec_at(intern->a_mask + l, u) = (FLT_TYP)(uniform_flt_rnd(NULL) >= drp);
     }
 }
 
@@ -169,7 +182,7 @@ vec_t *nn_model_apply(const nn_model_t *model, const vec_t *input, vec_t *output
     assert(vec_is_valid(input));
     assert(vec_is_valid(output));
     assert(input->d == model->input_size);
-    assert(output->d == model->layer[model->nbr_layers - 1].out_sz);
+    assert(output->d == model->ouput_size);
 
     vec_t *a_inp = &model->intern.a_inp;
     vec_t *s = model->intern.s;
@@ -201,7 +214,6 @@ vec_t *nn_model_apply(const nn_model_t *model, const vec_t *input, vec_t *output
 }
 
 static inline void nn_model_backprop(nn_model_t *model, const vec_t *loss_drv,
-                                     //    const vec_t *data_x,
                                      vec_t *buff_1, vec_t *buff_2)
 {
     assert(model);
@@ -249,7 +261,7 @@ static inline void init_ind(IND_TYP *ind, IND_TYP size)
         ind[i] = i;
 }
 
-static inline void shuffle_ind(IND_TYP *ind, IND_TYP size, unsigned rnd(void))
+static inline void shuffle_ind(IND_TYP *ind, IND_TYP size, uint64_t rnd(void))
 {
     for (IND_TYP i = 0; i < size - 1; i++)
     {
@@ -265,36 +277,52 @@ static inline void shuffle_ind(IND_TYP *ind, IND_TYP size, unsigned rnd(void))
 }
 
 nn_model_t *nn_model_train(nn_model_t *model,
-                           const mat_t *data_x,
-                           const mat_t *data_trg,
+                           const data_points_t *data_x, slice_t x_sly,
+                           const data_points_t *data_trg, slice_t trg_sly,
                            const vec_t *data_weight,
-                           int batch_size,
+                           slice_t index_sly,
+                           IND_TYP batch_size,
                            int nbr_epochs,
                            bool shuffle,
                            nn_optim_t *optimizer,
                            const nn_loss_t loss)
 {
     assert(model);
-    assert(mat_is_valid(data_x));
-    assert(mat_is_valid(data_trg));
-    assert(data_x->d1 == data_trg->d1);
-    if (data_weight)
-        assert(data_weight->d == data_x->d1);
-    assert(batch_size > 0 && nbr_epochs > 0);
-    if (model->nbr_layers == 0 || data_x->d1 == 0 || data_trg->d1 == 0)
+    assert(data_points_is_valid(data_x));
+    assert(data_points_is_valid(data_trg));
+    assert(slice_is_valid(&x_sly));
+    assert(slice_is_valid(&trg_sly));
+    assert(slice_is_valid(&index_sly));
+    assert(batch_size >= 0 && nbr_epochs > 0);
+
+    slice_regulate(&x_sly, data_x->width);
+    slice_regulate(&trg_sly, data_trg->width);
+    slice_regulate(&index_sly, data_x->nbr_points);
+
+    assert(model->input_size == x_sly.len);
+    assert(model->ouput_size == trg_sly.len);
+    assert(!data_weight || data_weight->d == index_sly.len);
+
+    if (batch_size == 0)
+        batch_size = index_sly.len;
+
+    if (model->nbr_layers == 0 || index_sly.len == 0 || nbr_epochs <= 0 || batch_size <= 0)
     {
+        log_msg(LOG_WRN, "nn_model_train: the model can't be trained with the given params!");
         return model;
     }
-    if (nbr_epochs <= 0 || batch_size <= 0)
+    if (model->input_size != x_sly.len || model->ouput_size != trg_sly.len || (data_weight && data_weight->d != index_sly.len))
     {
+        log_msg(LOG_WRN, "nn_model_train: mismatch sizes! nothing trained.");
         return model;
     }
+
     vec_t *buff_1 = vec_new(model->max_width);
     vec_t *buff_2 = vec_new(model->max_width);
-    vec_t *output = vec_new(model->layer[model->nbr_layers - 1].out_sz);
-    vec_t *loss_drv = vec_new(model->layer[model->nbr_layers - 1].out_sz);
+    vec_t *output = vec_new(model->ouput_size);
+    vec_t *loss_drv = vec_new(model->ouput_size);
     vec_t feat = vec_NULL, lbl = vec_NULL;
-    IND_TYP nbr_data = data_x->d1;
+    IND_TYP nbr_data = index_sly.len;
     IND_TYP nbr_batch = nbr_data / batch_size;
     IND_TYP nbr_rem_data = nbr_data - nbr_batch * batch_size;
 
@@ -302,11 +330,11 @@ nn_model_t *nn_model_train(nn_model_t *model,
     assert(ind);
     init_ind(ind, nbr_data);
 
-    // puts("Training...");
+    log_msg(LOG_INF, "nn_model_train: training began.");
     for (IND_TYP epoch = 0; epoch < nbr_epochs; epoch++)
     {
         if (shuffle)
-            shuffle_ind(ind, nbr_data, model->intern.ui32_rnd);
+            shuffle_ind(ind, nbr_data, UINT_RND_GEN);
         IND_TYP i = 0;
         for (IND_TYP batch = 0; batch < nbr_batch; batch++)
         {
@@ -315,14 +343,13 @@ nn_model_t *nn_model_train(nn_model_t *model,
             nn_model_reset_gradients(&model->intern);
             for (IND_TYP b_i = 0; b_i < batch_size; b_i++, i++)
             {
-                // vec_init_prealloc(&feat, mat_at(data_x, ind[i], 0), data_x->d2);
-                mat_row_at(data_x, &feat, ind[i]);
+                IND_TYP k = slice_index(&index_sly, ind[i]);
+                data_points_at(data_x, &feat, k, &x_sly);
                 nn_model_apply(model, &feat, output, true);
-                // vec_init_prealloc(&lbl, mat_at(data_trg, ind[i], 0), data_trg->d2);
-                mat_row_at(data_trg, &lbl, ind[i]);
+                data_points_at(data_trg, &lbl, k, &trg_sly);
                 loss.deriv(loss_drv, &lbl, output);
                 if (data_weight)
-                    vec_scale(loss_drv, *vec_at(data_weight, ind[i]));
+                    vec_scale(loss_drv, *vec_at(data_weight, k));
                 nn_model_backprop(model, loss_drv, buff_1, buff_2);
             }
             nn_optim_update_model(optimizer, model);
@@ -333,21 +360,20 @@ nn_model_t *nn_model_train(nn_model_t *model,
             nn_model_reset_gradients(&model->intern);
             for (; i < nbr_data; i++)
             {
-                // vec_init_prealloc(&feat, mat_at(data_x, ind[i], 0), data_x->d2);
-                mat_row_at(data_x, &feat, ind[i]);
+                IND_TYP k = slice_index(&index_sly, ind[i]);
+                data_points_at(data_x, &feat, k, &x_sly);
                 nn_model_apply(model, &feat, output, true);
-                // vec_init_prealloc(&lbl, mat_at(data_trg, ind[i], 0), data_trg->d2);
-                mat_row_at(data_trg, &lbl, ind[i]);
+                data_points_at(data_trg, &lbl, k, &trg_sly);
                 loss.deriv(loss_drv, &lbl, output);
                 if (data_weight)
-                    vec_scale(loss_drv, *vec_at(data_weight, ind[i]));
+                    vec_scale(loss_drv, *vec_at(data_weight, k));
                 nn_model_backprop(model, loss_drv, buff_1, buff_2);
             }
             nn_optim_update_model(optimizer, model);
         }
-        // printf("\repoch  %d/%d finished.", epoch + 1, nbr_epochs);
+        log_msg(LOG_DBG, "nn_model_train: epoch  %d/%d finished.", epoch + 1, nbr_epochs);
     }
-    // puts("\n...done.");
+    log_msg(LOG_INF, "nn_model_train: training ended.");
 
     free(ind);
     vec_del(loss_drv);
@@ -357,37 +383,50 @@ nn_model_t *nn_model_train(nn_model_t *model,
     return model;
 }
 
-FLT_TYP nn_model_eval(const nn_model_t *model, const mat_t *data_x, const mat_t *data_trg,
+FLT_TYP nn_model_eval(const nn_model_t *model, const data_points_t *data_x, slice_t x_sly,
+                      const data_points_t *data_trg, slice_t trg_sly,
+                      const vec_t *data_weight, slice_t index_sly,
                       const nn_loss_t loss, bool categorization)
 {
     assert(model);
-    assert(mat_is_valid(data_x));
-    assert(mat_is_valid(data_trg));
-    assert(data_x->d1 == data_trg->d1);
-    if (model->nbr_layers == 0 || data_x->d1 == 0 || data_trg->d1 == 0)
-        return -1;
+    assert(data_points_is_valid(data_x));
+    assert(data_points_is_valid(data_trg));
+    assert(slice_is_valid(&x_sly));
+    assert(slice_is_valid(&trg_sly));
+    assert(slice_is_valid(&index_sly));
+
+    slice_regulate(&x_sly, data_x->width);
+    slice_regulate(&trg_sly, data_trg->width);
+    slice_regulate(&index_sly, data_x->nbr_points);
+
+    assert(model->input_size == x_sly.len);
+    assert(model->ouput_size == trg_sly.len);
+    assert(!data_weight || data_weight->d == index_sly.len);
+
     FLT_TYP loss_value = 0;
     FLT_TYP trg_nrm = 0;
     vec_t inp = vec_NULL, trg = vec_NULL;
-    vec_t *out = vec_new(data_trg->d2);
-    vec_t *buf = vec_new(data_trg->d2);
-    for (int i = 0; i < data_x->d1; i++)
+    vec_t *out = vec_new(trg_sly.len);
+    vec_t *buf = vec_new(trg_sly.len);
+    for (int i = 0; i < index_sly.len; i++)
     {
-        // vec_init_prealloc(&inp, mat_at(data_x, i, 0), data_x->d2);
-        mat_row_at(data_x, &inp, i);
+        IND_TYP k = slice_index(&index_sly, i);
+        data_points_at(data_x, &inp, k, &x_sly);
         nn_model_apply(model, &inp, out, false);
-        // vec_init_prealloc(&trg, mat_at(data_trg, i, 0), data_trg->d2);
-        mat_row_at(data_trg, &trg, i);
+        data_points_at(data_trg, &trg, k, &trg_sly);
+        FLT_TYP w = 1;
+        if (data_weight)
+            w = *vec_at(data_weight, k);
         if (!categorization)
         {
-            trg_nrm += vec_norm_2(&trg);
-            loss_value += loss.func(&trg, out, buf);
+            trg_nrm += w * vec_norm_2(&trg);
+            loss_value += w * loss.func(&trg, out, buf);
         }
         else
         {
-            trg_nrm += 1;
+            trg_nrm += w;
             IND_TYP im = vec_argmax(out);
-            loss_value += 1 - *vec_at(&trg, im);
+            loss_value += w * (1 - *vec_at(&trg, im));
         }
     }
     vec_del(buf);
@@ -401,8 +440,8 @@ char *nn_model_to_str(const nn_model_t *model, char *string)
     assert(string);
     char buff[128];
     buff[0] = 0;
-    sprintf(string, "nn_model: input size %ld, nbr of layers %d, max width %ld, capacity %d; layers:\n",
-            model->input_size, model->nbr_layers, model->max_width, model->capacity);
+    sprintf(string, "nn_model: input size %ld, nbr of layers %d, max width %ld, layer_capacity %d; layers:\n",
+            model->input_size, model->nbr_layers, model->max_width, model->layer_capacity);
     for (int l = 0; l < model->nbr_layers; l++)
     {
         sprintf(buff, "%3d ", l);
@@ -455,7 +494,7 @@ size_t nn_model_serial_size(const nn_model_t *model)
     assert(model);
     size_t size = 0;
     size += sizeof(size_t) +
-            sizeof(model->capacity) + sizeof(model->input_size) +
+            sizeof(model->layer_capacity) + sizeof(model->input_size) +
             sizeof(model->nbr_layers) + sizeof(model->max_width);
     for (IND_TYP l = 0; l < model->nbr_layers; l++)
     {
@@ -472,7 +511,7 @@ uint8_t *nn_model_serialize(const nn_model_t *model, uint8_t *byte_arr)
     assert(byte_arr);
     size_t sz = nn_model_serial_size(model);
     byte_arr = wrt2byt(&sz, sizeof(size_t), byte_arr);
-    byte_arr = wrt2byt(&model->capacity, sizeof(model->capacity), byte_arr);
+    byte_arr = wrt2byt(&model->layer_capacity, sizeof(model->layer_capacity), byte_arr);
     byte_arr = wrt2byt(&model->input_size, sizeof(model->input_size), byte_arr);
     byte_arr = wrt2byt(&model->nbr_layers, sizeof(model->nbr_layers), byte_arr);
     byte_arr = wrt2byt(&model->max_width, sizeof(model->max_width), byte_arr);
@@ -503,7 +542,7 @@ const uint8_t *nn_model_deserialize(nn_model_t *model, const uint8_t *byte_arr)
     int cap = 0;
     IND_TYP inp_sz = 0;
     byte_arr = rd_byt(NULL, sizeof(size_t), byte_arr);
-    byte_arr = rd_byt(&cap, sizeof(model->capacity), byte_arr);
+    byte_arr = rd_byt(&cap, sizeof(model->layer_capacity), byte_arr);
     byte_arr = rd_byt(&inp_sz, sizeof(model->input_size), byte_arr);
     nn_model_construct(model, cap, inp_sz);
     byte_arr = rd_byt(&model->nbr_layers, sizeof(model->nbr_layers), byte_arr);

@@ -7,7 +7,7 @@
 
 extern const nn_optim_class nn_optim_cls_ADAM;
 
-typedef struct nn_optim_cls_ADAM_params_struct
+typedef struct nn_optim_cls_ADAM_params
 {
     FLT_TYP alpha;
     FLT_TYP beta1, beta2;

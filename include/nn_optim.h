@@ -4,21 +4,21 @@
 // #include "nn_model.h"
 #include "nn_conf.h"
 
-struct nn_model_struct;
-typedef struct nn_model_struct nn_model_t;
+struct nn_model;
+typedef struct nn_model nn_model_t;
 
-struct nn_optim_class_struct;
-typedef struct nn_optim_class_struct nn_optim_class;
+struct nn_optim_class;
+typedef struct nn_optim_class nn_optim_class;
 
-struct nn_optim_struct;
-typedef struct nn_optim_struct nn_optim_t;
+struct nn_optim;
+typedef struct nn_optim nn_optim_t;
 
 typedef nn_model_t *(*nn_optim_update_model_func)(nn_optim_t *optimizer, nn_model_t *model);
 typedef nn_optim_t *(*nn_optim_construct_func)(nn_optim_t *optimizer, const nn_model_t *model);
 typedef nn_optim_t *(*nn_optim_set_params_func)(nn_optim_t *optimizer, const void *params);
 typedef void (*nn_optim_destruct_func)(nn_optim_t *optimizer);
 
-struct nn_optim_class_struct
+struct nn_optim_class
 {
     nn_optim_update_model_func update_model;
     nn_optim_construct_func construct;
@@ -29,7 +29,7 @@ struct nn_optim_class_struct
 #define nn_optim_class_NULL \
 ((const nn_optim_class){.update_model = NULL, .construct = NULL, .set_params = NULL, .destruct = NULL})
 
-struct nn_optim_struct
+struct nn_optim
 {
     nn_optim_class class;
     void *params;

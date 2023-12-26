@@ -5,8 +5,8 @@ SRCPATH = ./src
 BINPATH = ./bin
 OBJPATH = ./obj
 LIBPATH = ./lib
-EXT_INC_FLAGS= -I${HOME}/include/lin_alg
-EXT_LIB_FLAGS= -L/usr/lib/x86_64-linux-gnu -L${HOME}/lib
+EXT_INC_FLAGS= -I${HOME}/include/lin_alg -I${HOME}/include/
+EXT_LIB_FLAGS= -L/usr/lib/x86_64-linux-gnu -L${HOME}/lib ${HOME}/lib/log.o ${HOME}/lib/pcg.o
 
 RLS_LIB = $(PRJNAME)
 DBG_LIB = $(PRJNAME)_dbg

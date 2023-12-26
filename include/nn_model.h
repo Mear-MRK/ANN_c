@@ -1,16 +1,18 @@
-#ifndef NN_MODEL_T_H_INCLUDED
-#define NN_MODEL_T_H_INCLUDED 1
+#pragma once
 
 #include <stdbool.h>
 
 #include "nn_layer.h"
 #include "nn_model_intern.h"
+#include "data_points.h"
+
 #include "nn_conf.h"
 
-typedef struct nn_model_struct
+typedef struct nn_model
 {
-    int capacity;
     IND_TYP input_size;
+    IND_TYP ouput_size;
+    int layer_capacity;
     int nbr_layers;
     IND_TYP max_width;
     nn_layer_t *layer;
@@ -26,11 +28,9 @@ extern const nn_model_t nn_model_NULL;
 
 bool nn_model_is_null(const nn_model_t *model);
 
-nn_model_t *nn_model_construct(nn_model_t *model, int capacity, IND_TYP input_size);
+nn_model_t *nn_model_construct(nn_model_t *model, int layer_capacity, IND_TYP input_size);
 
 void nn_model_destruct(nn_model_t *model);
-
-void nn_model_set_rnd_gens(nn_model_t *model, uint32_t (*ui32_rnd)(void), float (*flt_rnd)(void));
 
 nn_model_t *nn_model_init_uniform_rnd(nn_model_t *model, FLT_TYP amp, FLT_TYP mean);
 // nn_model_t *nn_model_init_copy(nn_model_t *model, const nn_model_t *src_model);
@@ -43,17 +43,23 @@ nn_model_t *nn_model_remove(nn_model_t *model, int layer_index);
 vec_t *nn_model_apply(const nn_model_t *model, const vec_t *input, vec_t *output, bool training);
 
 nn_model_t *nn_model_train(nn_model_t *model,
-                           const mat_t *data_x,
-                           const mat_t *data_trg,
+                           const data_points_t *data_x, slice_t x_sly,
+                           const data_points_t *data_trg, slice_t trg_sly,
                            const vec_t *data_weight,
-                           int batch_size,
+                           slice_t index_sly,
+                           IND_TYP batch_size,
                            int nbr_epochs,
                            bool shuffle,
                            nn_optim_t *optimizer,
                            const nn_loss_t loss);
 
-FLT_TYP nn_model_eval(const nn_model_t *model, const mat_t *data_x, const mat_t *data_trg,
-                      const nn_loss_t loss, bool categorization);
+FLT_TYP nn_model_eval(const nn_model_t *model,
+                      const data_points_t *data_x, slice_t x_sly,
+                      const data_points_t *data_trg, slice_t trg_sly,
+                      const vec_t *data_weight,
+                      slice_t index_sly,
+                      const nn_loss_t loss,
+                      bool categorization);
 
 char *nn_model_to_str(const nn_model_t *model, char *string);
 void nn_model_print(const nn_model_t *model);
@@ -71,5 +77,3 @@ nn_model_t *nn_model_load(nn_model_t *model, const char *file_path);
 
 // Merges identically structured models
 // int nn_model_merge(nn_model_t *result, const nn_model_t *model_arr[], FLT_TYP weight_arr[]);
-
-#endif /* NN_MODEL_T_H_INCLUDED */
