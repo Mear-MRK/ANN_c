@@ -5,8 +5,6 @@
 
 #include "nn_optim_cls_SGD.h"
 #include "nn_optim_cls_ADAM.h"
-
-#include "nn_conf.h"
     
 #endif /* NN_H_INCLUDED */
     

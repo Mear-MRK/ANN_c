@@ -1,22 +1,22 @@
 #ifndef NN_OPTIM_H_INCLUDED
 #define NN_OPTIM_H_INCLUDED 1
 
+#include "nn_config.h"
 // #include "nn_model.h"
-#include "nn_conf.h"
 
 struct nn_model;
-typedef struct nn_model nn_model_t;
+typedef struct nn_model nn_model;
 
 struct nn_optim_class;
 typedef struct nn_optim_class nn_optim_class;
 
 struct nn_optim;
-typedef struct nn_optim nn_optim_t;
+typedef struct nn_optim nn_optim;
 
-typedef nn_model_t *(*nn_optim_update_model_func)(nn_optim_t *optimizer, nn_model_t *model);
-typedef nn_optim_t *(*nn_optim_construct_func)(nn_optim_t *optimizer, const nn_model_t *model);
-typedef nn_optim_t *(*nn_optim_set_params_func)(nn_optim_t *optimizer, const void *params);
-typedef void (*nn_optim_destruct_func)(nn_optim_t *optimizer);
+typedef nn_model *(*nn_optim_update_model_func)(nn_optim *optimizer, nn_model *model);
+typedef nn_optim *(*nn_optim_construct_func)(nn_optim *optimizer, const nn_model *model);
+typedef nn_optim *(*nn_optim_set_params_func)(nn_optim *optimizer, const void *params);
+typedef void (*nn_optim_destruct_func)(nn_optim *optimizer);
 
 struct nn_optim_class
 {
@@ -36,11 +36,11 @@ struct nn_optim
     void *intern;
 };
 
-#define nn_optim_NULL ((const nn_optim_t){.class = nn_optim_class_NULL, .params = NULL, .intern = NULL})
+#define nn_optim_NULL ((const nn_optim){.class = nn_optim_class_NULL, .params = NULL, .intern = NULL})
 
-nn_optim_t *nn_optim_construct(nn_optim_t *optimizer, const nn_optim_class *optim_class, const nn_model_t *model);
-nn_optim_t *nn_optim_set_params(nn_optim_t *optimizer, const void *params);
-void nn_optim_destruct(nn_optim_t *optimizer);
-nn_model_t *nn_optim_update_model(nn_optim_t *optimizer, nn_model_t *model);
+nn_optim *nn_optim_construct(nn_optim *optimizer, const nn_optim_class *optim_class, const nn_model *model);
+nn_optim *nn_optim_set_params(nn_optim *optimizer, const void *params);
+void nn_optim_destruct(nn_optim *optimizer);
+nn_model *nn_optim_update_model(nn_optim *optimizer, nn_model *model);
 
 #endif /* NN_OPTIM_H_INCLUDED */

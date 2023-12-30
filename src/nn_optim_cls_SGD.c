@@ -5,17 +5,17 @@
 
 #include "nn_model.h"
 
-static nn_optim_t *nn_optim_cls_SGD_construct(nn_optim_t *optimizer, const nn_model_t *model)
+static nn_optim *nn_optim_cls_SGD_construct(nn_optim *optimizer, const nn_model *model)
 {
     assert(optimizer);
     optimizer->intern = NULL;
-    optimizer->params = calloc(1, sizeof(nn_optim_cls_SGD_params_t));
+    optimizer->params = calloc(1, sizeof(nn_optim_cls_SGD_params));
     assert(optimizer->params);
-    ((nn_optim_cls_SGD_params_t *)optimizer->params)->learning_rate = 0.0001f;
+    ((nn_optim_cls_SGD_params *)optimizer->params)->learning_rate = 0.0001f;
     return optimizer;
 }
 
-static void nn_optim_cls_SGD_destruct(nn_optim_t *optimizer)
+static void nn_optim_cls_SGD_destruct(nn_optim *optimizer)
 {
     assert(optimizer);
     if (optimizer->params)
@@ -23,11 +23,11 @@ static void nn_optim_cls_SGD_destruct(nn_optim_t *optimizer)
     optimizer->params = NULL;
 }
 
-static nn_optim_t *nn_optim_cls_SGD_set_params(nn_optim_t *optimizer, const void *inp_params)
+static nn_optim *nn_optim_cls_SGD_set_params(nn_optim *optimizer, const void *inp_params)
 {
     assert(optimizer);
-    nn_optim_cls_SGD_params_t *params = (nn_optim_cls_SGD_params_t *)optimizer->params;
-    nn_optim_cls_SGD_params_t *inp_p = (nn_optim_cls_SGD_params_t *)inp_params;
+    nn_optim_cls_SGD_params *params = (nn_optim_cls_SGD_params *)optimizer->params;
+    nn_optim_cls_SGD_params *inp_p = (nn_optim_cls_SGD_params *)inp_params;
     if (inp_p && inp_p->learning_rate > 0)
     {
         params->learning_rate = inp_p->learning_rate;
@@ -35,11 +35,11 @@ static nn_optim_t *nn_optim_cls_SGD_set_params(nn_optim_t *optimizer, const void
     return optimizer;
 }
 
-static nn_model_t *nn_optim_cls_SGD_update_model(nn_optim_t *optimizer, nn_model_t *model)
+static nn_model *nn_optim_cls_SGD_update_model(nn_optim *optimizer, nn_model *model)
 {
     assert(optimizer);
     assert(model);
-    nn_optim_cls_SGD_params_t *params = (nn_optim_cls_SGD_params_t *)optimizer->params;
+    nn_optim_cls_SGD_params *params = (nn_optim_cls_SGD_params *)optimizer->params;
     FLT_TYP alpha = -params->learning_rate;
     for (int l = 0; l < model->nbr_layers; l++)
     {

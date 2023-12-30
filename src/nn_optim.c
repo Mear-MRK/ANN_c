@@ -5,7 +5,7 @@
 
 #include "nn_model.h"
 
-nn_optim_t *nn_optim_construct(nn_optim_t *optimizer, const nn_optim_class *optim_class, const nn_model_t *model)
+nn_optim *nn_optim_construct(nn_optim *optimizer, const nn_optim_class *optim_class, const nn_model *model)
 {
     assert(optimizer);
     assert(model);
@@ -16,7 +16,7 @@ nn_optim_t *nn_optim_construct(nn_optim_t *optimizer, const nn_optim_class *opti
     return optimizer;
 }
 
-nn_optim_t *nn_optim_set_params(nn_optim_t *optimizer, const void *params)
+nn_optim *nn_optim_set_params(nn_optim *optimizer, const void *params)
 {
     assert(optimizer);
     if (optimizer->class.set_params)
@@ -24,7 +24,7 @@ nn_optim_t *nn_optim_set_params(nn_optim_t *optimizer, const void *params)
     return optimizer;
 }
 
-void nn_optim_destruct(nn_optim_t *optimizer)
+void nn_optim_destruct(nn_optim *optimizer)
 {
     assert(optimizer);
     if (optimizer->class.destruct)
@@ -32,7 +32,7 @@ void nn_optim_destruct(nn_optim_t *optimizer)
     *optimizer = nn_optim_NULL;
 }
 
-nn_model_t *nn_optim_update_model(nn_optim_t *optimizer, nn_model_t *model)
+nn_model *nn_optim_update_model(nn_optim *optimizer, nn_model *model)
 {
     assert(optimizer);
     assert(model);

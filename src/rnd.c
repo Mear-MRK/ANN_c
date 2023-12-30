@@ -14,7 +14,7 @@ FLT_TYP uniform_flt_rnd(const void *param)
     if (!param)
         return UNIF_FLT_RND_GEN();
 
-    const flt_rnd_param_t *p = (const flt_rnd_param_t *)param;
+    const flt_rnd_param *p = (const flt_rnd_param *)param;
     return p->amp * (2 * UNIF_FLT_RND_GEN() - 1) + p->mean;
 }
 

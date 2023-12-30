@@ -10,29 +10,29 @@
 typedef struct nn_optim_cls_ADAM_intern
 {
     int nbr_layers;
-    mat_t *m_w;
-    vec_t *m_b;
-    mat_t *v_w;
-    vec_t *v_b;
-    payload_t pyl_0, pyl_1;
+    mat *m_w;
+    vec *m_b;
+    mat *v_w;
+    vec *v_b;
+    payload pyl_0, pyl_1;
     size_t t;
     FLT_TYP beta1t, beta2t;
-} nn_optim_cls_ADAM_intern_t;
+} nn_optim_cls_ADAM_intern;
 
-static nn_optim_cls_ADAM_intern_t *intern_construct(nn_optim_cls_ADAM_intern_t *intern, nn_optim_t *optimizer, const nn_model_t *model)
+static nn_optim_cls_ADAM_intern *intern_construct(nn_optim_cls_ADAM_intern *intern, nn_optim *optimizer, const nn_model *model)
 {
     assert(intern);
     assert(model);
     assert(optimizer);
 
     intern->nbr_layers = model->nbr_layers;
-    intern->m_w = (mat_t *)calloc(intern->nbr_layers, sizeof(mat_t));
+    intern->m_w = (mat *)calloc(intern->nbr_layers, sizeof(mat));
     assert(intern->m_w);
-    intern->v_w = (mat_t *)calloc(intern->nbr_layers, sizeof(mat_t));
+    intern->v_w = (mat *)calloc(intern->nbr_layers, sizeof(mat));
     assert(intern->v_w);
-    intern->m_b = (vec_t *)calloc(intern->nbr_layers, sizeof(vec_t));
+    intern->m_b = (vec *)calloc(intern->nbr_layers, sizeof(vec));
     assert(intern->m_b);
-    intern->v_b = (vec_t *)calloc(intern->nbr_layers, sizeof(vec_t));
+    intern->v_b = (vec *)calloc(intern->nbr_layers, sizeof(vec));
     assert(intern->v_b);
 
     IND_TYP max_sz = 0;
@@ -56,14 +56,14 @@ static nn_optim_cls_ADAM_intern_t *intern_construct(nn_optim_cls_ADAM_intern_t *
     assert(payload_is_valid(&intern->pyl_0));
     payload_construct(&intern->pyl_1, max_sz);
     assert(payload_is_valid(&intern->pyl_1));
-    nn_optim_cls_ADAM_params_t *params = (nn_optim_cls_ADAM_params_t *)optimizer->params;
+    nn_optim_cls_ADAM_params *params = (nn_optim_cls_ADAM_params *)optimizer->params;
     intern->t = params->t0;
     intern->beta1t = (FLT_TYP)pow(params->beta1, intern->t);
     intern->beta2t = (FLT_TYP)pow(params->beta2, intern->t);
     return intern;
 }
 
-static void intern_destruct(nn_optim_cls_ADAM_intern_t *intern)
+static void intern_destruct(nn_optim_cls_ADAM_intern *intern)
 {
     assert(intern);
     for (int l = 0; l < intern->nbr_layers; l++)
@@ -79,35 +79,36 @@ static void intern_destruct(nn_optim_cls_ADAM_intern_t *intern)
     free(intern->v_b);
     payload_release(&intern->pyl_0);
     payload_release(&intern->pyl_1);
-    memset(intern, 0, sizeof(nn_optim_cls_ADAM_intern_t));
+    memset(intern, 0, sizeof(nn_optim_cls_ADAM_intern));
 }
 
-static nn_optim_t *nn_optim_cls_ADAM_construct(nn_optim_t *optimizer, const nn_model_t *model)
+static nn_optim *nn_optim_cls_ADAM_construct(nn_optim *optimizer, const nn_model *model)
 {
     assert(optimizer);
     assert(model);
-    optimizer->params = calloc(1, sizeof(nn_optim_cls_ADAM_params_t));
+    optimizer->params = calloc(1, sizeof(nn_optim_cls_ADAM_params));
     assert(optimizer->params);
-    optimizer->intern = calloc(1, sizeof(nn_optim_cls_ADAM_intern_t));
+    optimizer->intern = calloc(1, sizeof(nn_optim_cls_ADAM_intern));
     assert(optimizer->intern);
-    nn_optim_cls_ADAM_params_t *params = (nn_optim_cls_ADAM_params_t *)optimizer->params;
-    nn_optim_cls_ADAM_intern_t *intern = (nn_optim_cls_ADAM_intern_t *)optimizer->intern;
+    nn_optim_cls_ADAM_params *params = (nn_optim_cls_ADAM_params *)optimizer->params;
+    nn_optim_cls_ADAM_intern *intern = (nn_optim_cls_ADAM_intern *)optimizer->intern;
     *params = nn_optim_cls_ADAM_params_DEFAULT;
     intern_construct(intern, optimizer, model);
 
     return optimizer;
 }
 
-static void nn_optim_cls_ADAM_destruct(nn_optim_t *optimizer)
+static void nn_optim_cls_ADAM_destruct(nn_optim *optimizer)
 {
     assert(optimizer);
     free(optimizer->params);
     optimizer->params = NULL;
-    intern_destruct((nn_optim_cls_ADAM_intern_t *)optimizer->intern);
+    intern_destruct((nn_optim_cls_ADAM_intern *)optimizer->intern);
+    free(optimizer->intern);
     optimizer->intern = NULL;
 }
 
-void nn_optim_cls_ADAM_params_clear(nn_optim_cls_ADAM_params_t *params)
+void nn_optim_cls_ADAM_params_clear(nn_optim_cls_ADAM_params *params)
 {
     params->alpha = -1;
     params->beta1 = -1;
@@ -116,11 +117,11 @@ void nn_optim_cls_ADAM_params_clear(nn_optim_cls_ADAM_params_t *params)
     params->t0 = UINT32_MAX;
 }
 
-static nn_optim_t *nn_optim_cls_ADAM_set_params(nn_optim_t *optimizer, const void *inp_params)
+static nn_optim *nn_optim_cls_ADAM_set_params(nn_optim *optimizer, const void *inp_params)
 {
     assert(optimizer);
-    nn_optim_cls_ADAM_params_t *params = (nn_optim_cls_ADAM_params_t *)optimizer->params;
-    nn_optim_cls_ADAM_params_t *inp_p = (nn_optim_cls_ADAM_params_t *)inp_params;
+    nn_optim_cls_ADAM_params *params = (nn_optim_cls_ADAM_params *)optimizer->params;
+    nn_optim_cls_ADAM_params *inp_p = (nn_optim_cls_ADAM_params *)inp_params;
     if (inp_p)
     {
         if (inp_p->alpha > 0)
@@ -137,12 +138,12 @@ static nn_optim_t *nn_optim_cls_ADAM_set_params(nn_optim_t *optimizer, const voi
     return optimizer;
 }
 
-static nn_model_t *nn_optim_cls_ADAM_update_model(nn_optim_t *optimizer, nn_model_t *model)
+static nn_model *nn_optim_cls_ADAM_update_model(nn_optim *optimizer, nn_model *model)
 {
     assert(optimizer);
     assert(model);
-    nn_optim_cls_ADAM_params_t *params = (nn_optim_cls_ADAM_params_t *)optimizer->params;
-    nn_optim_cls_ADAM_intern_t *intern = (nn_optim_cls_ADAM_intern_t *)optimizer->intern;
+    nn_optim_cls_ADAM_params *params = (nn_optim_cls_ADAM_params *)optimizer->params;
+    nn_optim_cls_ADAM_intern *intern = (nn_optim_cls_ADAM_intern *)optimizer->intern;
     intern->t++;
     FLT_TYP omb1 = 1 - intern->beta1t;
     FLT_TYP omb2 = 1 - intern->beta2t;
@@ -152,10 +153,10 @@ static nn_model_t *nn_optim_cls_ADAM_update_model(nn_optim_t *optimizer, nn_mode
     FLT_TYP d1 = (1 - params->beta1) / (1 - intern->beta1t);
     FLT_TYP c2 = params->beta2 * omb2 / (1 - intern->beta2t);
     FLT_TYP d2 = (1 - params->beta2) / (1 - intern->beta2t);
-    mat_t tmp_w = mat_NULL;
-    mat_t tmp_dw = mat_NULL;
-    vec_t tmp_b = vec_NULL;
-    vec_t tmp_db = vec_NULL;
+    mat tmp_w = mat_NULL;
+    mat tmp_dw = mat_NULL;
+    vec tmp_b = vec_NULL;
+    vec tmp_db = vec_NULL;
     mat_construct_prealloc(&tmp_w, &intern->pyl_0, 0, 1, 1);
     vec_construct_prealloc(&tmp_b, &intern->pyl_1, 0, 1, 1);
     mat_construct_prealloc(&tmp_dw, &intern->pyl_1, 0, 1, 1);

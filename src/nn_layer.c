@@ -4,10 +4,10 @@
 #include <string.h>
 #include <stdio.h>
 
-nn_layer_t *nn_layer_init(
-    nn_layer_t *layer,
+nn_layer *nn_layer_init(
+    nn_layer *layer,
     IND_TYP output_size,
-    nn_activ_t activation,
+    nn_activ activation,
     FLT_TYP dropout_ratio)
 {
     assert(layer);
@@ -21,13 +21,13 @@ nn_layer_t *nn_layer_init(
     return layer;
 }
 
-bool nn_layer_is_null(const nn_layer_t *layer)
+bool nn_layer_is_null(const nn_layer *layer)
 {
     assert(layer);
-    return memcmp(layer, &nn_layer_NULL, sizeof(nn_layer_t)) == 0;
+    return memcmp(layer, &nn_layer_NULL, sizeof(nn_layer)) == 0;
 }
 
-char *nn_layer_to_str(const nn_layer_t *layer, char *string)
+char *nn_layer_to_str(const nn_layer *layer, char *string)
 {
     assert(layer);
     assert(string);
@@ -39,13 +39,13 @@ char *nn_layer_to_str(const nn_layer_t *layer, char *string)
     return string;
 }
 
-size_t nn_layer_serial_size(const nn_layer_t *layer)
+size_t nn_layer_serial_size(const nn_layer *layer)
 {
     assert(layer);
     return sizeof(size_t) + sizeof(layer->out_sz) + sizeof(enum nn_activ_enum) + sizeof(layer->dropout);
 }
 
-uint8_t *nn_layer_serialize(const nn_layer_t *layer, uint8_t *byte_arr)
+uint8_t *nn_layer_serialize(const nn_layer *layer, uint8_t *byte_arr)
 {
     assert(layer);
     assert(byte_arr);
@@ -65,7 +65,7 @@ uint8_t *nn_layer_serialize(const nn_layer_t *layer, uint8_t *byte_arr)
     return byte_arr;
 }
 
-const uint8_t *nn_layer_deserialize(nn_layer_t *layer, const uint8_t *byte_arr)
+const uint8_t *nn_layer_deserialize(nn_layer *layer, const uint8_t *byte_arr)
 {
     assert(layer);
     assert(byte_arr);

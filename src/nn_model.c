@@ -9,7 +9,7 @@
 #include "rnd.h"
 #include "log.h"
 
-const nn_model_t nn_model_NULL =
+const nn_model nn_model_NULL =
     {.input_size = 0,
      .ouput_size = 0,
      .layer_capacity = 0,
@@ -20,12 +20,12 @@ const nn_model_t nn_model_NULL =
      .bias = NULL,
      .intern = nn_model_intern_NULL};
 
-bool nn_model_is_null(const nn_model_t *model)
+bool nn_model_is_null(const nn_model *model)
 {
-    return memcmp(model, &nn_model_NULL, sizeof(nn_model_t)) == 0;
+    return memcmp(model, &nn_model_NULL, sizeof(nn_model)) == 0;
 }
 
-nn_model_t *nn_model_construct(nn_model_t *model, int layer_capacity, IND_TYP input_size)
+nn_model *nn_model_construct(nn_model *model, int layer_capacity, IND_TYP input_size)
 {
     assert(model);
     assert(layer_capacity > 0);
@@ -53,11 +53,11 @@ nn_model_t *nn_model_construct(nn_model_t *model, int layer_capacity, IND_TYP in
     }
     model->layer_capacity = layer_capacity;
     model->ouput_size = 0;
-    model->layer = (nn_layer_t *)calloc(layer_capacity, sizeof(nn_layer_t));
+    model->layer = (nn_layer *)calloc(layer_capacity, sizeof(nn_layer));
     assert(model->layer);
-    model->weight = (mat_t *)calloc(layer_capacity, sizeof(mat_t));
+    model->weight = (mat *)calloc(layer_capacity, sizeof(mat));
     assert(model->weight);
-    model->bias = (vec_t *)calloc(layer_capacity, sizeof(vec_t));
+    model->bias = (vec *)calloc(layer_capacity, sizeof(vec));
     assert(model->bias);
     model->input_size = input_size;
     model->nbr_layers = 0;
@@ -66,7 +66,7 @@ nn_model_t *nn_model_construct(nn_model_t *model, int layer_capacity, IND_TYP in
     return model;
 }
 
-void nn_model_destruct(nn_model_t *model)
+void nn_model_destruct(nn_model *model)
 {
     assert(model);
     if (!nn_model_is_null(model))
@@ -84,11 +84,11 @@ void nn_model_destruct(nn_model_t *model)
     *model = nn_model_NULL;
 }
 
-nn_model_t *nn_model_init_uniform_rnd(nn_model_t *model, FLT_TYP amp, FLT_TYP mean)
+nn_model *nn_model_init_uniform_rnd(nn_model *model, FLT_TYP amp, FLT_TYP mean)
 {
     assert(model);
 
-    flt_rnd_param_t param;
+    flt_rnd_param param;
     param.amp = amp;
     param.mean = mean;
 
@@ -100,7 +100,7 @@ nn_model_t *nn_model_init_uniform_rnd(nn_model_t *model, FLT_TYP amp, FLT_TYP me
     return model;
 }
 
-nn_model_t *nn_model_append(nn_model_t *model, const nn_layer_t *layer)
+nn_model *nn_model_append(nn_model *model, const nn_layer *layer)
 {
     assert(model);
     assert(layer);
@@ -127,7 +127,7 @@ nn_model_t *nn_model_append(nn_model_t *model, const nn_layer_t *layer)
     return model;
 }
 
-nn_model_t *nn_model_remove(nn_model_t *model, int layer_index)
+nn_model *nn_model_remove(nn_model *model, int layer_index)
 {
     assert(model);
     if (layer_index < 0)
@@ -140,11 +140,11 @@ nn_model_t *nn_model_remove(nn_model_t *model, int layer_index)
     vec_destruct(model->bias + layer_index);
 
     memmove(model->layer + layer_index, model->layer + layer_index + 1,
-            (model->nbr_layers - layer_index) * sizeof(nn_layer_t));
+            (model->nbr_layers - layer_index) * sizeof(nn_layer));
     memmove(model->weight + layer_index, model->weight + layer_index + 1,
-            (model->nbr_layers - layer_index) * sizeof(mat_t));
+            (model->nbr_layers - layer_index) * sizeof(mat));
     memmove(model->bias + layer_index, model->bias + layer_index + 1,
-            (model->nbr_layers - layer_index) * sizeof(vec_t));
+            (model->nbr_layers - layer_index) * sizeof(vec));
     nn_model_intern_remove(&model->intern, layer_index);
 
     model->max_width = 0;
@@ -160,10 +160,10 @@ nn_model_t *nn_model_remove(nn_model_t *model, int layer_index)
     return model;
 }
 
-static void nn_model_dropping_out(nn_model_t *model)
+static void nn_model_dropping_out(nn_model *model)
 {
-    nn_layer_t *layer = model->layer;
-    nn_model_intern_t *intern = &model->intern;
+    nn_layer *layer = model->layer;
+    nn_model_intern *intern = &model->intern;
 
     for (int l = 0; l < model->nbr_layers; l++)
     {
@@ -174,7 +174,7 @@ static void nn_model_dropping_out(nn_model_t *model)
     }
 }
 
-vec_t *nn_model_apply(const nn_model_t *model, const vec_t *input, vec_t *output, bool training)
+vec *nn_model_apply(const nn_model *model, const vec *input, vec *output, bool training)
 {
     assert(model);
     if (model->nbr_layers == 0)
@@ -184,15 +184,15 @@ vec_t *nn_model_apply(const nn_model_t *model, const vec_t *input, vec_t *output
     assert(input->d == model->input_size);
     assert(output->d == model->ouput_size);
 
-    vec_t *a_inp = &model->intern.a_inp;
-    vec_t *s = model->intern.s;
-    vec_t *a = model->intern.a;
-    vec_t *a_mask = model->intern.a_mask;
+    vec *a_inp = &model->intern.a_inp;
+    vec *s = model->intern.s;
+    vec *a = model->intern.a;
+    vec *a_mask = model->intern.a_mask;
 
-    mat_t *w = model->weight;
-    vec_t *b = model->bias;
+    mat *w = model->weight;
+    vec *b = model->bias;
 
-    nn_layer_t *layer = model->layer;
+    nn_layer *layer = model->layer;
 
     if (layer->dropout && training)
         vec_mul(a_inp, a_mask, input);
@@ -213,8 +213,8 @@ vec_t *nn_model_apply(const nn_model_t *model, const vec_t *input, vec_t *output
     return output;
 }
 
-static inline void nn_model_backprop(nn_model_t *model, const vec_t *loss_drv,
-                                     vec_t *buff_1, vec_t *buff_2)
+static inline void nn_model_backprop(nn_model *model, const vec *loss_drv,
+                                     vec *buff_1, vec *buff_2)
 {
     assert(model);
     assert(vec_is_valid(loss_drv));
@@ -223,11 +223,11 @@ static inline void nn_model_backprop(nn_model_t *model, const vec_t *loss_drv,
     assert(vec_is_valid(buff_1));
     assert(vec_is_valid(buff_2));
 
-    nn_layer_t *layer = model->layer;
-    mat_t *w = model->weight;
-    vec_t *a = model->intern.a;
-    vec_t *s = model->intern.s;
-    vec_t *a_m = model->intern.a_mask;
+    nn_layer *layer = model->layer;
+    mat *w = model->weight;
+    vec *a = model->intern.a;
+    vec *s = model->intern.s;
+    vec *a_m = model->intern.a_mask;
 
     buff_1->d = loss_drv->d;
     vec_assign(buff_1, loss_drv);
@@ -239,7 +239,7 @@ static inline void nn_model_backprop(nn_model_t *model, const vec_t *loss_drv,
         if (l + 1 != model->nbr_layers && layer[l + 1].dropout)
             vec_mulby(buff_2, a_m + l + 1);
         vec_mulby(buff_2, buff_1);
-        const vec_t *tmp;
+        const vec *tmp;
         if (l != 0)
         {
             buff_1->d = w[l].d2;
@@ -276,16 +276,16 @@ static inline void shuffle_ind(IND_TYP *ind, IND_TYP size, uint64_t rnd(void))
     }
 }
 
-nn_model_t *nn_model_train(nn_model_t *model,
-                           const data_points_t *data_x, slice_t x_sly,
-                           const data_points_t *data_trg, slice_t trg_sly,
-                           const vec_t *data_weight,
-                           slice_t index_sly,
+nn_model *nn_model_train(nn_model *model,
+                           const data_points *data_x, slice x_sly,
+                           const data_points *data_trg, slice trg_sly,
+                           const vec *data_weight,
+                           slice index_sly,
                            IND_TYP batch_size,
                            int nbr_epochs,
                            bool shuffle,
-                           nn_optim_t *optimizer,
-                           const nn_loss_t loss)
+                           nn_optim *optimizer,
+                           const nn_loss loss)
 {
     assert(model);
     assert(data_points_is_valid(data_x));
@@ -317,11 +317,11 @@ nn_model_t *nn_model_train(nn_model_t *model,
         return model;
     }
 
-    vec_t *buff_1 = vec_new(model->max_width);
-    vec_t *buff_2 = vec_new(model->max_width);
-    vec_t *output = vec_new(model->ouput_size);
-    vec_t *loss_drv = vec_new(model->ouput_size);
-    vec_t feat = vec_NULL, lbl = vec_NULL;
+    vec *buff_1 = vec_new(model->max_width);
+    vec *buff_2 = vec_new(model->max_width);
+    vec *output = vec_new(model->ouput_size);
+    vec *loss_drv = vec_new(model->ouput_size);
+    vec feat = vec_NULL, lbl = vec_NULL;
     IND_TYP nbr_data = index_sly.len;
     IND_TYP nbr_batch = nbr_data / batch_size;
     IND_TYP nbr_rem_data = nbr_data - nbr_batch * batch_size;
@@ -380,13 +380,15 @@ nn_model_t *nn_model_train(nn_model_t *model,
     vec_del(output);
     vec_del(buff_2);
     vec_del(buff_1);
+    vec_destruct(&feat);
+    vec_destruct(&lbl);
     return model;
 }
 
-FLT_TYP nn_model_eval(const nn_model_t *model, const data_points_t *data_x, slice_t x_sly,
-                      const data_points_t *data_trg, slice_t trg_sly,
-                      const vec_t *data_weight, slice_t index_sly,
-                      const nn_loss_t loss, bool categorization)
+FLT_TYP nn_model_eval(const nn_model *model, const data_points *data_x, slice x_sly,
+                      const data_points *data_trg, slice trg_sly,
+                      const vec *data_weight, slice index_sly,
+                      const nn_loss loss, bool classification)
 {
     assert(model);
     assert(data_points_is_valid(data_x));
@@ -405,9 +407,9 @@ FLT_TYP nn_model_eval(const nn_model_t *model, const data_points_t *data_x, slic
 
     FLT_TYP loss_value = 0;
     FLT_TYP trg_nrm = 0;
-    vec_t inp = vec_NULL, trg = vec_NULL;
-    vec_t *out = vec_new(trg_sly.len);
-    vec_t *buf = vec_new(trg_sly.len);
+    vec inp = vec_NULL, trg = vec_NULL;
+    vec *out = vec_new(trg_sly.len);
+    vec *buf = vec_new(trg_sly.len);
     for (int i = 0; i < index_sly.len; i++)
     {
         IND_TYP k = slice_index(&index_sly, i);
@@ -417,7 +419,7 @@ FLT_TYP nn_model_eval(const nn_model_t *model, const data_points_t *data_x, slic
         FLT_TYP w = 1;
         if (data_weight)
             w = *vec_at(data_weight, k);
-        if (!categorization)
+        if (!classification)
         {
             trg_nrm += w * vec_norm_2(&trg);
             loss_value += w * loss.func(&trg, out, buf);
@@ -431,10 +433,12 @@ FLT_TYP nn_model_eval(const nn_model_t *model, const data_points_t *data_x, slic
     }
     vec_del(buf);
     vec_del(out);
+    vec_destruct(&inp);
+    vec_destruct(&trg);
     return loss_value / trg_nrm;
 }
 
-char *nn_model_to_str(const nn_model_t *model, char *string)
+char *nn_model_to_str(const nn_model *model, char *string)
 {
     assert(model);
     assert(string);
@@ -452,7 +456,7 @@ char *nn_model_to_str(const nn_model_t *model, char *string)
     return string;
 }
 
-void nn_model_print(const nn_model_t *model)
+void nn_model_print(const nn_model *model)
 {
     char str_buff[4096];
     printf(nn_model_to_str(model, str_buff));
@@ -467,7 +471,7 @@ void nn_model_print(const nn_model_t *model)
     }
 }
 
-size_t nn_model_nbr_param(const nn_model_t *model)
+size_t nn_model_nbr_param(const nn_model *model)
 {
     assert(model);
     if (model->nbr_layers <= 0)
@@ -489,11 +493,11 @@ static inline uint8_t *wrt2byt(const void *obj, size_t sz, uint8_t *bytes)
     return bytes + sz;
 }
 
-size_t nn_model_serial_size(const nn_model_t *model)
+size_t nn_model_serial_size(const nn_model *model)
 {
     assert(model);
     size_t size = 0;
-    size += sizeof(size_t) +
+    size += sizeof(size) +
             sizeof(model->layer_capacity) + sizeof(model->input_size) +
             sizeof(model->nbr_layers) + sizeof(model->max_width);
     for (IND_TYP l = 0; l < model->nbr_layers; l++)
@@ -505,7 +509,7 @@ size_t nn_model_serial_size(const nn_model_t *model)
     return size;
 }
 
-uint8_t *nn_model_serialize(const nn_model_t *model, uint8_t *byte_arr)
+uint8_t *nn_model_serialize(const nn_model *model, uint8_t *byte_arr)
 {
     assert(model);
     assert(byte_arr);
@@ -534,7 +538,7 @@ static inline const uint8_t *rd_byt(void *obj, size_t sz, const uint8_t *bytes)
     return bytes + sz;
 }
 
-const uint8_t *nn_model_deserialize(nn_model_t *model, const uint8_t *byte_arr)
+const uint8_t *nn_model_deserialize(nn_model *model, const uint8_t *byte_arr)
 {
     assert(model);
     assert(byte_arr);
@@ -559,7 +563,7 @@ const uint8_t *nn_model_deserialize(nn_model_t *model, const uint8_t *byte_arr)
     return byte_arr;
 }
 
-void nn_model_save(const nn_model_t *model, const char *file_path)
+void nn_model_save(const nn_model *model, const char *file_path)
 {
     FILE *file = fopen(file_path, "wb");
     if (!file)
@@ -584,7 +588,7 @@ void nn_model_save(const nn_model_t *model, const char *file_path)
     assert(size == ((size_t)(ptr - byte_arr)));
 }
 
-nn_model_t *nn_model_load(nn_model_t *model, const char *file_path)
+nn_model *nn_model_load(nn_model *model, const char *file_path)
 {
     FILE *file = fopen(file_path, "rb");
     if (!file)
@@ -593,7 +597,7 @@ nn_model_t *nn_model_load(nn_model_t *model, const char *file_path)
         exit(-2);
     }
     size_t size = 0;
-    fread(&size, sizeof(size_t), 1, file);
+    fread(&size, sizeof(size), 1, file);
     uint8_t *byte_arr = malloc(size);
     assert(byte_arr);
     size_t sz = fread(byte_arr, 1, size, file);
@@ -612,9 +616,9 @@ nn_model_t *nn_model_load(nn_model_t *model, const char *file_path)
 }
 
 // uint8_t *byte_arr = NULL;
-// size_t chunk_size = 4096;
-// size_t total_size = 0;
-// size_t bytes_read = 0;
+// size chunk_size = 4096;
+// size total_size = 0;
+// size bytes_read = 0;
 // do
 // {
 //     byte_arr = realloc(byte_arr, total_size + chunk_size);

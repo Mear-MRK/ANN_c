@@ -6,7 +6,7 @@
 #include "rnd.h"
 #include "log.h"
 
-data_points_t *data_points_construct(data_points_t *dtpts, IND_TYP width, IND_TYP init_capacity)
+data_points *data_points_construct(data_points *dtpts, IND_TYP width, IND_TYP init_capacity)
 {
     assert(dtpts);
     assert(width > 0);
@@ -34,20 +34,21 @@ data_points_t *data_points_construct(data_points_t *dtpts, IND_TYP width, IND_TY
         log_msg(LOG_ERR, "data_points_construct: cannot construct the payload!");
         *dtpts = data_points_NULL;
     }
-
+    payload_clear_value(&dtpts->payload, 0, dtpts->payload.size);
     return dtpts;
 }
 
-void data_points_destruct(data_points_t *dtpts)
+void data_points_destruct(data_points *dtpts)
 {
     assert(data_points_is_valid(dtpts));
     if (!dtpts)
         return;
     payload_release(&dtpts->payload);
+    log_msg(LOG_DBG, "data_points_destruct: payload after release: %p ref_c: %d", dtpts->payload.arr, dtpts->payload.ref_count);
     *dtpts = data_points_NULL;
 }
 
-data_points_t *data_points_append(data_points_t *dest, const data_points_t *src)
+data_points *data_points_append(data_points *dest, const data_points *src)
 {
     assert(data_points_is_valid(dest));
     assert(data_points_is_valid(src));
@@ -56,8 +57,11 @@ data_points_t *data_points_append(data_points_t *dest, const data_points_t *src)
     if (dest->capacity < new_nbr)
     {
         IND_TYP new_cap = 3 * new_nbr / 2;
-        if (payload_resize(&dest->payload, new_cap))
+        if (payload_resize(&dest->payload, new_cap * dest->width))
+        {
+            payload_clear_value(&dest->payload, dest->capacity * dest->width, dest->payload.size);
             dest->capacity = new_cap;
+        }
         else
             log_msg(LOG_WRN, "data_points_append: cannot resize the payload!");
     }
@@ -65,7 +69,7 @@ data_points_t *data_points_append(data_points_t *dest, const data_points_t *src)
     return dest;
 }
 
-vec_t *data_points_at(data_points_t *dtpts, vec_t *data, IND_TYP i, const slice_t *sly)
+vec *data_points_at(data_points *dtpts, vec *data, IND_TYP i, const slice *sly)
 {
     assert(data_points_is_valid(dtpts));
     assert(data);
@@ -83,7 +87,7 @@ vec_t *data_points_at(data_points_t *dtpts, vec_t *data, IND_TYP i, const slice_
     return vec_construct_prealloc(data, &dtpts->payload, i * dtpts->width + sly->start, sly->len, sly->step);
 }
 
-vec_t *data_points_at_rnd(data_points_t *dtpts, vec_t *data, const slice_t *sly)
+vec *data_points_at_rnd(data_points *dtpts, vec *data, const slice *sly)
 {
     assert(data_points_is_valid(dtpts));
     assert(vec_is_valid(data));
@@ -91,14 +95,14 @@ vec_t *data_points_at_rnd(data_points_t *dtpts, vec_t *data, const slice_t *sly)
     return data_points_at(dtpts, data, i, sly);
 }
 
-data_points_t *data_points_shuffle(data_points_t *dtpts, slice_t i_sly)
+data_points *data_points_shuffle(data_points *dtpts, slice i_sly)
 {
     assert(data_points_is_valid(dtpts));
     assert(slice_is_valid(&i_sly));
 
     slice_regulate(&i_sly, dtpts->nbr_points);
 
-    vec_t tmp = vec_NULL, va = vec_NULL, vb = vec_NULL;
+    vec tmp = vec_NULL, va = vec_NULL, vb = vec_NULL;
     vec_construct(&tmp, dtpts->width);
     for (IND_TYP k = 0; k < i_sly.len - 1; k++)
     {
@@ -118,13 +122,13 @@ data_points_t *data_points_shuffle(data_points_t *dtpts, slice_t i_sly)
     return dtpts;
 }
 
-static bool is_null(const data_points_t *dtpts)
+static bool is_null(const data_points *dtpts)
 {
     assert(dtpts);
-    return memcmp(dtpts, &data_points_NULL, sizeof(data_points_t)) == 0;
+    return memcmp(dtpts, &data_points_NULL, sizeof(data_points)) == 0;
 }
 
-bool data_points_is_valid(const data_points_t *dtpts)
+bool data_points_is_valid(const data_points *dtpts)
 {
     return dtpts &&
            !is_null(dtpts) &&
@@ -136,7 +140,7 @@ bool data_points_is_valid(const data_points_t *dtpts)
            (size_t)(dtpts->capacity * dtpts->width) <= dtpts->payload.size;
 }
 
-data_points_t *data_points_clear(data_points_t *dtpts)
+data_points *data_points_clear(data_points *dtpts)
 {
     assert(data_points_is_valid(dtpts));
     dtpts->nbr_points = 0;
@@ -144,5 +148,6 @@ data_points_t *data_points_clear(data_points_t *dtpts)
     {
         log_msg(LOG_WRN, "data_points_clear: cannot resize the payload!");
     }
+    payload_clear_value(&dtpts->payload, 0, dtpts->payload.size);
     return dtpts;
 }

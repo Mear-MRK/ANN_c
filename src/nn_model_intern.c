@@ -4,20 +4,20 @@
 #include <assert.h>
 #include <stdlib.h>
 
-nn_model_intern_t *nn_model_intern_construct(nn_model_intern_t *intern, int layer_capacity, IND_TYP inp_size)
+nn_model_intern *nn_model_intern_construct(nn_model_intern *intern, int layer_capacity, IND_TYP inp_size)
 {
     assert(intern);
     assert(layer_capacity > 0);
 
-    intern->d_w = (mat_t *)calloc(layer_capacity, sizeof(mat_t));
+    intern->d_w = (mat *)calloc(layer_capacity, sizeof(mat));
     assert(intern->d_w);
-    intern->d_b = (vec_t *)calloc(layer_capacity, sizeof(vec_t));
+    intern->d_b = (vec *)calloc(layer_capacity, sizeof(vec));
     assert(intern->d_b);
-    intern->a_mask = (vec_t *)calloc(layer_capacity, sizeof(vec_t));
+    intern->a_mask = (vec *)calloc(layer_capacity, sizeof(vec));
     assert(intern->a_mask);
-    intern->s = (vec_t *)calloc(layer_capacity, sizeof(vec_t));
+    intern->s = (vec *)calloc(layer_capacity, sizeof(vec));
     assert(intern->s);
-    intern->a = (vec_t *)calloc(layer_capacity, sizeof(vec_t));
+    intern->a = (vec *)calloc(layer_capacity, sizeof(vec));
     assert(intern->a);
     intern->nbr_layers = 0;
     intern->a_inp = vec_NULL;
@@ -25,7 +25,7 @@ nn_model_intern_t *nn_model_intern_construct(nn_model_intern_t *intern, int laye
     return intern;
 }
 
-void nn_model_intern_destruct(nn_model_intern_t *intern)
+void nn_model_intern_destruct(nn_model_intern *intern)
 {
     for (int l = 0; l < intern->nbr_layers; l++)
     {
@@ -41,10 +41,10 @@ void nn_model_intern_destruct(nn_model_intern_t *intern)
     vec_destruct(&intern->a_inp);
     free(intern->s);
     free(intern->a);
-    memset(intern, 0, sizeof(nn_model_intern_t));
+    memset(intern, 0, sizeof(nn_model_intern));
 }
 
-nn_model_intern_t *nn_model_intern_add(nn_model_intern_t *intern, const nn_layer_t *layer, IND_TYP inp_size)
+nn_model_intern *nn_model_intern_add(nn_model_intern *intern, const nn_layer *layer, IND_TYP inp_size)
 {
     assert(intern);
     assert(layer);
@@ -57,7 +57,7 @@ nn_model_intern_t *nn_model_intern_add(nn_model_intern_t *intern, const nn_layer
     return intern;
 }
 
-nn_model_intern_t *nn_model_intern_remove(nn_model_intern_t *intern, int layer_index)
+nn_model_intern *nn_model_intern_remove(nn_model_intern *intern, int layer_index)
 {
     assert(intern);
     assert(layer_index >= 0 && layer_index < intern->nbr_layers);
@@ -67,11 +67,11 @@ nn_model_intern_t *nn_model_intern_remove(nn_model_intern_t *intern, int layer_i
     vec_destruct(intern->s + layer_index);
     vec_destruct(intern->a + layer_index);
     int nsz_mv = intern->nbr_layers - layer_index;
-    memmove(intern->d_w + layer_index, intern->d_w + layer_index + 1, nsz_mv * sizeof(mat_t));
-    memmove(intern->d_b + layer_index, intern->d_b + layer_index + 1, nsz_mv * sizeof(vec_t));
-    memmove(intern->a_mask + layer_index, intern->a_mask + layer_index + 1, nsz_mv * sizeof(vec_t));
-    memmove(intern->s + layer_index, intern->s + layer_index + 1, nsz_mv * sizeof(vec_t));
-    memmove(intern->a + layer_index, intern->a + layer_index + 1, nsz_mv * sizeof(vec_t));
+    memmove(intern->d_w + layer_index, intern->d_w + layer_index + 1, nsz_mv * sizeof(mat));
+    memmove(intern->d_b + layer_index, intern->d_b + layer_index + 1, nsz_mv * sizeof(vec));
+    memmove(intern->a_mask + layer_index, intern->a_mask + layer_index + 1, nsz_mv * sizeof(vec));
+    memmove(intern->s + layer_index, intern->s + layer_index + 1, nsz_mv * sizeof(vec));
+    memmove(intern->a + layer_index, intern->a + layer_index + 1, nsz_mv * sizeof(vec));
     return intern;
 }
 
@@ -103,7 +103,7 @@ static inline IND_TYP *shuffle_choose_n(IND_TYP *ind, IND_TYP size, IND_TYP n, u
     return ind;
 }
 
-void nn_model_reset_gradients(nn_model_intern_t *intern)
+void nn_model_reset_gradients(nn_model_intern *intern)
 {
     assert(intern);
     for (int l = 0; l < intern->nbr_layers; l++)
