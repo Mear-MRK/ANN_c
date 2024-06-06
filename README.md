@@ -5,7 +5,7 @@ This project implements a neural network framework in C, designed to facilitate 
 The project draws inspiration from Keras API for a user-friendly and intuitive experience.
 
 ### Important Note
-- This framework requires the [lin_alg_c](https://github.com/Mear-MRK/lin_alg_c) project as a dependency for linear algebra operations.
+- This framework requires [lin_alg_c](https://github.com/Mear-MRK/lin_alg_c) for linear algebra operations, [rand_gen_c](https://github.com/Mear-MRK/rand_gen_c) for random number generation, and [logging_c](https://github.com/Mear-MRK/logging_c) for logging.
 - A C11 compliant compiler is sufficient for compilation.
 
 ### Features
