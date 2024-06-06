@@ -1,11 +1,12 @@
-# an Artificial Neural Network Framework in C
+# C Artificial Neural Network Framework
 
 This project implements a neural network framework in C, designed to facilitate the construction, training, and evaluation of neural network models for both regression and classification tasks. It provides a modular structure that enables users to define various components of a neural network, including layers, activation functions, loss functions, and optimization algorithms. The framework is built to be flexible and extensible, making it suitable for educational purposes, prototyping, and experimenting with neural network architectures and training techniques.
 
-The project draws inspiration from Keras' API for a user-friendly and intuitive experience.
+The project draws inspiration from Keras API for a user-friendly and intuitive experience.
 
 ### Important Note
-This framework requires the `lin_alg_c` project as a dependency for linear algebra operations.
+- This framework requires the [`lin_alg_c`](https://github.com/Mear-MRK/lin_alg_c) project as a dependency for linear algebra operations.
+- A C11 compliant compiler is required for compilation.
 
 ### Features
 
@@ -65,4 +66,63 @@ This framework requires the `lin_alg_c` project as a dependency for linear algeb
 - **nn_optim_cls_ADAM.c**: Implements the ADAM optimization algorithm.
 - **nn_optim_cls_SGD.c**: Implements the SGD optimization algorithm.
 - **rnd.c**: Implements random number generation utilities.
+
+## Example Usage
+```c
+#include "nn.h"
+
+//...
+
+// Define hidden layer configuration
+nn_layer lay_hid;
+lay_hid.out_sz = 64;           // Set the number of neurons in the hidden layer to 64
+lay_hid.dropout = 0.1;         // Apply a dropout of 10% to prevent overfitting
+lay_hid.activ = nn_activ_RELU; // Use ReLU as the activation function for the hidden layer
+
+// Define output layer configuration
+nn_layer lay_out;
+lay_out.out_sz = nbr_labels;   // Set the number of neurons in the output layer to the number of labels
+lay_out.dropout = 0;           // No dropout for the output layer
+lay_out.activ = nn_activ_ID;   // Use Identity function as the activation function for the output layer
+
+// Initialize the neural network model
+nn_model model = nn_model_NULL;  // Create a null model to start with
+nn_model_construct(model, capacity, nbr_feat); // Construct the model with the given capacity (max nbr. of layers) and number of features
+
+// Add layers to the model
+nn_model_append(&model, &lay_hid); // Append the hidden layer to the model
+nn_model_append(&model, &lay_out); // Append the output layer to the model
+
+// Initialize model weights uniformly with mean `mu` and standard deviation `sig`
+nn_model_init_uniform_rnd(&model, mu, sig);
+
+// Initialize the optimizer
+nn_optim cat_opt;
+nn_optim_construct(&opt, &nn_optim_cls_ADAM, &model); // Construct the optimizer using the ADAM optimization algorithm
+
+// Train the neural network model
+nn_model_train(
+    &model,                  // Model to be trained
+    &x_data, slice_NONE,     // Training data (inputs)
+    &y_data, slice_NONE,     // Training data (labels)
+    NULL, slice_NONE,        // No weights
+    batch_sz,                // Batch size for training
+    nbr_ep,                  // Number of epochs for training
+    true,                    // Shuffle data during training
+    &opt,                    // Optimizer
+    nn_loss_CrossEnt         // Loss function (Cross-Entropy for classification)
+);
+
+// Evaluate the neural network model
+avg_err = nn_model_eval(
+    &model, 
+    &x_test_data, slice_NONE, // Test data (inputs)
+    &y_test_data, slice_NONE, // Test data (labels)
+    NULL, slice_NONE,         // No weights
+    nn_loss_CrossEnt,         // Loss function (Cross-Entropy for classification)
+    true                      // Shuffle data during evaluation
+);
+
+//...
+```
     
