@@ -42,7 +42,7 @@ The project draws inspiration from Keras API for a user-friendly and intuitive e
 
 ### Header Files
 - **data_points.h**: Defines structures and functions for managing data points.
-- **nn.h**: Includes core neural network structures and functions.
+- **nn.h**: (main header) Includes all needed neural network structures and functions.
 - **nn_activ.h**: Defines activation functions and their derivatives.
 - **nn_config.h**: Contains configuration settings for the neural network framework.
 - **nn_layer.h**: Defines structures and functions for managing neural network layers.
@@ -50,12 +50,12 @@ The project draws inspiration from Keras API for a user-friendly and intuitive e
 - **nn_model.h**: Defines structures and functions for managing neural network models.
 - **nn_model_intern.h**: Contains internal model data structures.
 - **nn_optim.h**: Defines optimization algorithms and their management.
-- **nn_optim_cls_ADAM.h**: Implements the ADAM optimization algorithm.
-- **nn_optim_cls_SGD.h**: Implements the SGD optimization algorithm.
+- **nn_optim_cls_ADAM.h**: Declares the ADAM optimization algorithm.
+- **nn_optim_cls_SGD.h**: Declares the SGD optimization algorithm.
 - **rnd.h**: Provides random number generation utilities.
 
 ### Source Files
-- **ann_test.c**: Contains test functions and sample data generation for regression tasks.
+- **ann_test.c**: Contains test functions and sample data generation.
 - **data_points.c**: Implements functions for managing collections of data points.
 - **nn_activ.c**: Implements activation functions and their derivatives.
 - **nn_layer.c**: Implements functions for managing neural network layers.
