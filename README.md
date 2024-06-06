@@ -91,8 +91,8 @@ nn_model_construct(model, capacity, nbr_feat); // Construct the model with the g
 nn_model_append(&model, &lay_hid); // Append the hidden layer to the model
 nn_model_append(&model, &lay_out); // Append the output layer to the model
 
-// Initialize model weights uniformly with mean `mu` and standard deviation `sig`
-nn_model_init_uniform_rnd(&model, mu, sig);
+// Initialize model weights and biases uniformly with mean `mu` and half width `w`
+nn_model_init_uniform_rnd(&model, w, mu);
 
 // Initialize the optimizer
 nn_optim cat_opt;
@@ -118,7 +118,7 @@ avg_err = nn_model_eval(
     &y_test_data, slice_NONE, // Test data (labels)
     NULL, slice_NONE,         // No weights for test data
     nn_loss_CrossEnt,         // Loss function (Cross-Entropy for classification)
-    true                      // Shuffle data during evaluation
+    true                      // Eval for classification
 );
 
 //...
