@@ -41,8 +41,8 @@ The project draws inspiration from Keras API for a user-friendly and intuitive e
 ## Detailed Project Structure
 
 ### Header Files
+- **nn.h**: (main header) Includes all needed headers.
 - **data_points.h**: Defines structures and functions for managing data points.
-- **nn.h**: (main header) Includes all needed neural network structures and functions.
 - **nn_activ.h**: Defines activation functions and their derivatives.
 - **nn_config.h**: Contains configuration settings for the neural network framework.
 - **nn_layer.h**: Defines structures and functions for managing neural network layers.
