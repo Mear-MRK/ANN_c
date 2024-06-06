@@ -85,7 +85,7 @@ lay_out.activ = nn_activ_ID;   // Use Identity function as the activation functi
 
 // Initialize the neural network model
 nn_model model = nn_model_NULL;  // Create a null model to start with
-nn_model_construct(model, capacity, nbr_feat); // Construct the model with the given capacity (max nbr. of layers) and number of features
+nn_model_construct(&model, capacity, nbr_feat); // Construct the model with the given capacity (max nbr. of layers) and number of features
 
 // Add layers to the model
 nn_model_append(&model, &lay_hid); // Append the hidden layer to the model
@@ -95,7 +95,7 @@ nn_model_append(&model, &lay_out); // Append the output layer to the model
 nn_model_init_uniform_rnd(&model, w, mu);
 
 // Initialize the optimizer
-nn_optim cat_opt;
+nn_optim opt;
 nn_optim_construct(&opt, &nn_optim_cls_ADAM, &model); // Construct the optimizer using the ADAM optimization algorithm
 
 // Train the neural network model
