@@ -1,12 +1,12 @@
 # C Artificial Neural Network Framework
 
-This project implements a neural network framework in C, designed to facilitate the construction, training, and evaluation of neural network models for both regression and classification tasks. It provides a modular structure that enables users to define various components of a neural network, including layers, activation functions, loss functions, and optimization algorithms. The framework is built to be flexible and extensible, making it suitable for educational purposes, prototyping, and experimenting with neural network architectures and training techniques.
+This project implements a neural network framework in C, designed to facilitate the construction, training, and evaluation of neural network models for both regression and classification tasks. It provides a modular structure that enables users to define various components of a neural network, including layers, activation functions, loss functions, and optimization algorithms. The framework is built to be flexible and extensible, making it suitable for prototyping, and experimenting with neural network architectures and training techniques.
 
 The project draws inspiration from Keras API for a user-friendly and intuitive experience.
 
 ### Important Note
-- This framework requires the [`lin_alg_c`](https://github.com/Mear-MRK/lin_alg_c) project as a dependency for linear algebra operations.
-- A C11 compliant compiler is required for compilation.
+- This framework requires the [lin_alg_c](https://github.com/Mear-MRK/lin_alg_c) project as a dependency for linear algebra operations.
+- A C11 compliant compiler is sufficient for compilation.
 
 ### Features
 
@@ -37,8 +37,6 @@ The project draws inspiration from Keras API for a user-friendly and intuitive e
    - **Model Evaluation**: Functions to evaluate models on datasets and compute performance metrics.
    - **Model Saving/Loading**: Support for saving and loading models from files for persistence.
 
-7. **Example Implementation**:
-   - **ann_test.c**: Contains example code for generating sample data, creating neural network models, training, and evaluating them.
 
 ## Detailed Project Structure
 
