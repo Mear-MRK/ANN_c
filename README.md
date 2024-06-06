@@ -103,7 +103,7 @@ nn_model_train(
     &model,                  // Model to be trained
     &x_data, slice_NONE,     // Training data (inputs)
     &y_data, slice_NONE,     // Training data (labels)
-    NULL, slice_NONE,        // No weights
+    NULL, slice_NONE,        // No weights for input data
     batch_sz,                // Batch size for training
     nbr_ep,                  // Number of epochs for training
     true,                    // Shuffle data during training
@@ -116,7 +116,7 @@ avg_err = nn_model_eval(
     &model, 
     &x_test_data, slice_NONE, // Test data (inputs)
     &y_test_data, slice_NONE, // Test data (labels)
-    NULL, slice_NONE,         // No weights
+    NULL, slice_NONE,         // No weights for test data
     nn_loss_CrossEnt,         // Loss function (Cross-Entropy for classification)
     true                      // Shuffle data during evaluation
 );
