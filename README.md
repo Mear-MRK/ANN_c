@@ -50,8 +50,8 @@ The project draws inspiration from Keras API for a user-friendly and intuitive e
 - **nn_model.h**: Defines structures and functions for managing neural network models.
 - **nn_model_intern.h**: Contains internal model data structures.
 - **nn_optim.h**: Defines optimization algorithms and their management.
-- **nn_optim_cls_ADAM.h**: Declares the ADAM optimization algorithm.
-- **nn_optim_cls_SGD.h**: Declares the SGD optimization algorithm.
+- **nn_optim_cls_ADAM.h**: Defines the ADAM optimization algorithm.
+- **nn_optim_cls_SGD.h**: Defines the SGD optimization algorithm.
 - **rnd.h**: Provides random number generation utilities.
 
 ### Source Files
@@ -103,7 +103,7 @@ nn_model_train(
     &model,                  // Model to be trained
     &x_data, slice_NONE,     // Training data (inputs)
     &y_data, slice_NONE,     // Training data (labels)
-    NULL, slice_NONE,        // No weights for input data
+    NULL, slice_NONE,        // No weights for train data
     batch_sz,                // Batch size for training
     nbr_ep,                  // Number of epochs for training
     true,                    // Shuffle data during training
